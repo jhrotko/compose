@@ -2,30 +2,26 @@ package compose
 
 import (
 	"context"
-	"fmt"
 	"github.com/docker/cli/cli/command"
 	"github.com/docker/compose/v2/pkg/api"
 	"github.com/spf13/cobra"
-	"os"
-	"os/exec"
 )
 
 type debugOptions struct {
-	*composeOptions
+	*ProjectOptions
 
+	Command    []string
 	service    string
-	command    []string
 	index      int
 	privileged bool
-	user       string
-	workingDir string
+	root       bool
+	host       string
+	shell      string
 }
 
 func debugCommand(p *ProjectOptions, dockerCli command.Cli, backend api.Service) *cobra.Command {
 	opts := debugOptions{
-		composeOptions: &composeOptions{
-			ProjectOptions: p,
-		},
+		ProjectOptions: p,
 	}
 	runCmd := &cobra.Command{
 		Use:   "debug [OPTIONS] SERVICE",
@@ -33,7 +29,9 @@ func debugCommand(p *ProjectOptions, dockerCli command.Cli, backend api.Service)
 		Args:  cobra.MinimumNArgs(1),
 		PreRunE: Adapt(func(ctx context.Context, args []string) error {
 			opts.service = args[0]
-			opts.command = args[1:]
+			if len(args) > 1 {
+				opts.Command = args[1:]
+			}
 			return nil
 		}),
 		RunE: Adapt(func(ctx context.Context, args []string) error {
@@ -43,27 +41,26 @@ func debugCommand(p *ProjectOptions, dockerCli command.Cli, backend api.Service)
 	}
 
 	runCmd.Flags().IntVar(&opts.index, "index", 0, "index of the container if service has multiple replicas")
+	runCmd.Flags().StringVarP(&opts.host, "host", "", "", "Daemon docker socket to connect to. E.g.: 'ssh://root@example.org', 'unix:///some/path/docker.sock'")
 	runCmd.Flags().BoolVarP(&opts.privileged, "privileged", "", false, "Give extended privileges to the process.")
-	runCmd.Flags().StringVarP(&opts.user, "user", "u", "", "Run the command as this user.")
-	runCmd.Flags().StringVarP(&opts.workingDir, "workdir", "w", "", "Path to workdir directory for this command.")
+	runCmd.Flags().BoolVarP(&opts.root, "root", "", false, "Attach as root user (uid = 0).")
+	runCmd.Flags().StringVarP(&opts.shell, "shell", "", "", "Select a shell. Supported: \"bash\", \"fish\", \"zsh\", \"auto\". (default auto)")
 
 	return runCmd
 }
 
-func runDebug(ctx context.Context, dockerCli command.Cli, backend api.Service, options debugOptions) error {
-	cmd := exec.Command("dld", "attach", options.service)
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stdout
-	cmd.Stdin = os.Stdin
-	if err := cmd.Start(); err != nil {
-		fmt.Println(err)
+func runDebug(ctx context.Context, dockerCli command.Cli, backend api.Service, opts debugOptions) error {
+	debugOpts := api.DebugOptions{
+		Command:    opts.Command,
+		Service:    opts.service,
+		Host:       opts.host,
+		Privileged: opts.privileged,
+	}
+	service := []string{opts.service}
+	project, err := opts.ToProject(dockerCli, service)
+	if err != nil {
 		return err
 	}
-	fmt.Println("Started command")
-	if err := cmd.Wait(); err != nil {
-		return err
-	}
-	fmt.Println("Finished command")
-
-	return nil
+	err = backend.Debug(ctx, project, debugOpts)
+	return err
 }

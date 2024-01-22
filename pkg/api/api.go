@@ -97,7 +97,12 @@ type Service interface {
 }
 
 type DebugOptions struct {
-	Services []string
+	Service    string
+	Root       bool
+	Host       string
+	Privileged bool
+	Command    []string
+	Shell      string
 }
 
 type ScaleOptions struct {
