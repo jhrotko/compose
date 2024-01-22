@@ -92,6 +92,12 @@ type Service interface {
 	Wait(ctx context.Context, projectName string, options WaitOptions) (int64, error)
 	// Scale manages numbers of container instances running per service
 	Scale(ctx context.Context, project *types.Project, options ScaleOptions) error
+	// Debug runs debug terminal running inside specified service
+	Debug(ctx context.Context, project *types.Project, options DebugOptions) error
+}
+
+type DebugOptions struct {
+	Services []string
 }
 
 type ScaleOptions struct {

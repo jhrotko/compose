@@ -459,6 +459,7 @@ func RootCommand(dockerCli command.Cli, backend api.Service) *cobra.Command { //
 		statsCommand(&opts, dockerCli),
 		watchCommand(&opts, dockerCli, backend),
 		alphaCommand(&opts, dockerCli, backend),
+		debugCommand(&opts, dockerCli, backend),
 	)
 
 	c.Flags().SetInterspersed(false)
