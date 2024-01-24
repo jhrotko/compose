@@ -8,7 +8,7 @@ import (
 )
 
 type debugOptions struct {
-	*ProjectOptions
+	*composeOptions
 
 	index   int
 	service string
@@ -21,7 +21,9 @@ type debugOptions struct {
 
 func debugCommand(p *ProjectOptions, dockerCli command.Cli, backend api.Service) *cobra.Command {
 	opts := debugOptions{
-		ProjectOptions: p,
+		composeOptions: &composeOptions{
+			ProjectOptions: p,
+		},
 	}
 	cmd := &cobra.Command{
 		Use:   "debug [OPTIONS] SERVICE",
@@ -47,11 +49,16 @@ func debugCommand(p *ProjectOptions, dockerCli command.Cli, backend api.Service)
 }
 
 func runDebug(ctx context.Context, dockerCli command.Cli, backend api.Service, opts debugOptions) error {
+	a, err := dockerCli.Client().ContainerInspect(ctx, opts.service)
+	if err != nil {
+		return err
+	}
 	debugOpts := api.DebugOptions{
-		Command: opts.Command,
-		Service: opts.service,
-		Host:    opts.host,
-		Shell:   opts.shell,
+		Command:     opts.Command,
+		Service:     opts.service,
+		Host:        opts.host,
+		Shell:       opts.shell,
+		ContainerID: a.ContainerJSONBase.ID,
 		//Privileged: opts.privileged,
 		//Root:       opts.root,
 	}

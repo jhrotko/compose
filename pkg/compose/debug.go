@@ -1,7 +1,6 @@
 package compose
 
 import (
-	"errors"
 	"fmt"
 	"github.com/compose-spec/compose-go/v2/types"
 	"github.com/docker/compose/v2/pkg/api"
@@ -29,33 +28,31 @@ func (s *composeService) Debug(ctx context.Context, project *types.Project, opti
 	if config == nil {
 		fmt.Println("Using default values")
 	}
-	args := make([]string, 5)
+	args := []string{"debug", options.ContainerID}
+
 	args = convertFieldsToArgs("host", config.Host, args)
 	args = convertFieldsToArgs("shell", config.Shell, args)
-	args = convertFieldsToArgs("privileged", config.Privileged, args)
-	args = convertFieldsToArgs("root", config.Root, args)
 	args = convertFieldsToArgs("command", config.Command, args)
-	//MISSING COMMAND
-	fmt.Println(fmt.Sprintf("args yo %v", args))
 
-	cmd := exec.Command("dld", "attach", options.Service)
+	fmt.Printf("args %v\n", args)
+	cmd := exec.Command("docker", args[0:]...)
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
 	cmd.Stdin = os.Stdin
 	if err := cmd.Start(); err != nil {
-		fmt.Println(err)
 		return err
 	}
-	fmt.Println("Started command")
+	//fmt.Println("Started command")
 	if err := cmd.Wait(); err != nil {
-		fmt.Println("Finished WITH ERROR command")
-		var exitError *exec.ExitError
-		if errors.As(err, &exitError) {
-			return fmt.Errorf(exitError.Error())
-		}
+		//var exitError *exec.ExitError
+		//if errors.As(err, &exitError) {
+		//	//fmt.Println("Finished WITH ERROR command")
+		//	return fmt.Errorf(exitError.Error())
+		//}
+		//fmt.Println("Finished WITH ERROR!!")
 		return err
 	}
-	fmt.Println("Finished command")
+	//fmt.Println("Finished command")
 	return nil
 }
 
@@ -67,27 +64,25 @@ func loadDebugConfig(service types.ServiceConfig) (*DebugConfig, error) {
 	inputDebugMap, ok := service.Extensions["x-debug"]
 
 	if !ok {
-		fmt.Println("not ok")
+		fmt.Println("There is no compose configuration for debug")
 		return &config, nil
 	}
 	if inputDebugMap == nil {
 		fmt.Println("yo")
-		return nil, nil
+		return &config, nil
 	}
-	fmt.Println("service.Extensions", service.Extensions)
+	//fmt.Println("service.Extensions", service.Extensions)
 	err := mapstructure.Decode(inputDebugMap, &config)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("Decode %#v\n", config)
+	//fmt.Printf("Decode %#v\n", config)
 	//}
 	return &config, nil
 }
 
 // Override configuration with options from command line
 func (d *DebugConfig) apply(opts api.DebugOptions) {
-	fmt.Printf("apply opts %#v\n", opts)
-	fmt.Printf("config %#v\n", *d)
 	//if d.Privileged != opts.Privileged {
 	//	d.Privileged = true
 	//}
@@ -103,25 +98,23 @@ func (d *DebugConfig) apply(opts api.DebugOptions) {
 	if opts.Command != "" {
 		d.Command = opts.Command
 	}
-	fmt.Printf("END APPLY config %#v\n", *d)
 }
 
 func convertFieldsToArgs(field string, value interface{}, args []string) []string {
 	switch value.(type) {
-	case bool:
-		if value == true {
-			return append(args, fmt.Sprintf("--%s", strings.ToLower(field)))
-		} else {
-			return args
-		}
+	//case bool:
+	//	if value == true {
+	//		return append(args, fmt.Sprintf("--%s", strings.ToLower(field)))
+	//	} else {
+	//		return args
+	//	}
 	case string:
 		if value == "" {
+			//fmt.Println("should be empty", field)
 			return args
 		}
+		args = append(args, fmt.Sprintf("--%s", strings.ToLower(field)))
+		args = append(args, fmt.Sprintf("%s", value))
 	}
-	args = append(args, fmt.Sprintf("--%s", strings.ToLower(field)))
-	args = append(args, fmt.Sprint(value))
-	fmt.Println(fmt.Sprintf("HMMM args %v", args))
-
 	return args
 }

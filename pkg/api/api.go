@@ -97,12 +97,13 @@ type Service interface {
 }
 
 type DebugOptions struct {
-	Service    string
-	Root       bool
-	Host       string
-	Privileged bool
-	Command    string
-	Shell      string
+	Service     string
+	ContainerID string
+	Command     string
+	Host        string
+	Shell       string
+	//Root        bool
+	//Privileged  bool
 }
 
 type ScaleOptions struct {
