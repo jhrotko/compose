@@ -101,7 +101,7 @@ type DebugOptions struct {
 	Root       bool
 	Host       string
 	Privileged bool
-	Command    []string
+	Command    string
 	Shell      string
 }
 

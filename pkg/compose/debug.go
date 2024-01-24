@@ -1,11 +1,11 @@
 package compose
 
 import (
+	"errors"
 	"fmt"
 	"github.com/compose-spec/compose-go/v2/types"
 	"github.com/docker/compose/v2/pkg/api"
 	"github.com/mitchellh/mapstructure"
-	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 	"os"
 	"os/exec"
@@ -22,17 +22,20 @@ type DebugConfig struct {
 
 func (s *composeService) Debug(ctx context.Context, project *types.Project, options api.DebugOptions) error {
 	config, err := loadDebugConfig(project.Services[options.Service])
+	config.apply(options)
 	if err != nil {
 		return err
 	}
 	if config == nil {
 		fmt.Println("Using default values")
 	}
-	args := make([]string, 10)
+	args := make([]string, 5)
 	args = convertFieldsToArgs("host", config.Host, args)
 	args = convertFieldsToArgs("shell", config.Shell, args)
 	args = convertFieldsToArgs("privileged", config.Privileged, args)
 	args = convertFieldsToArgs("root", config.Root, args)
+	args = convertFieldsToArgs("command", config.Command, args)
+	//MISSING COMMAND
 	fmt.Println(fmt.Sprintf("args yo %v", args))
 
 	cmd := exec.Command("dld", "attach", options.Service)
@@ -60,25 +63,47 @@ func (s *composeService) Debug(ctx context.Context, project *types.Project, opti
 // Once that is done, return type must be 8types.DevelopConfig instead of *DebugConfig
 func loadDebugConfig(service types.ServiceConfig) (*DebugConfig, error) {
 	var config DebugConfig
-	if service.Develop != nil {
-		inputDebugMap, ok := service.Extensions["x-debug"]
+	//if service.Develop != nil {
+	inputDebugMap, ok := service.Extensions["x-debug"]
 
-		if !ok {
-			fmt.Println("not ok")
-			return nil, nil
-		}
-		if inputDebugMap == nil {
-			fmt.Println("yo")
-			return nil, nil
-		}
-		fmt.Println("service.Extensions", service.Extensions)
-		err := mapstructure.Decode(inputDebugMap, &config)
-		if err != nil {
-			return nil, err
-		}
-		fmt.Printf("Decode %#v", config)
+	if !ok {
+		fmt.Println("not ok")
+		return &config, nil
 	}
+	if inputDebugMap == nil {
+		fmt.Println("yo")
+		return nil, nil
+	}
+	fmt.Println("service.Extensions", service.Extensions)
+	err := mapstructure.Decode(inputDebugMap, &config)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Printf("Decode %#v\n", config)
+	//}
 	return &config, nil
+}
+
+// Override configuration with options from command line
+func (d *DebugConfig) apply(opts api.DebugOptions) {
+	fmt.Printf("apply opts %#v\n", opts)
+	fmt.Printf("config %#v\n", *d)
+	//if d.Privileged != opts.Privileged {
+	//	d.Privileged = true
+	//}
+	//if !d.Root && opts.Root {
+	//	d.Root = true
+	//}
+	if opts.Shell != "" {
+		d.Shell = opts.Shell
+	}
+	if opts.Host != "" {
+		d.Host = opts.Host
+	}
+	if opts.Command != "" {
+		d.Command = opts.Command
+	}
+	fmt.Printf("END APPLY config %#v\n", *d)
 }
 
 func convertFieldsToArgs(field string, value interface{}, args []string) []string {

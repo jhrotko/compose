@@ -10,28 +10,25 @@ import (
 type debugOptions struct {
 	*ProjectOptions
 
-	Command    []string
-	service    string
-	index      int
-	privileged bool
-	root       bool
-	host       string
-	shell      string
+	index   int
+	service string
+	Command string
+	host    string
+	shell   string
+	//privileged bool
+	//root       bool
 }
 
 func debugCommand(p *ProjectOptions, dockerCli command.Cli, backend api.Service) *cobra.Command {
 	opts := debugOptions{
 		ProjectOptions: p,
 	}
-	runCmd := &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "debug [OPTIONS] SERVICE",
 		Short: "Execute a command in a running container.",
 		Args:  cobra.MinimumNArgs(1),
 		PreRunE: Adapt(func(ctx context.Context, args []string) error {
 			opts.service = args[0]
-			if len(args) > 1 {
-				opts.Command = args[1:]
-			}
 			return nil
 		}),
 		RunE: Adapt(func(ctx context.Context, args []string) error {
@@ -40,24 +37,25 @@ func debugCommand(p *ProjectOptions, dockerCli command.Cli, backend api.Service)
 		ValidArgsFunction: completeServiceNames(dockerCli, p),
 	}
 
-	runCmd.Flags().IntVar(&opts.index, "index", 0, "index of the container if service has multiple replicas")
-	runCmd.Flags().StringVarP(&opts.host, "host", "", "", "Daemon docker socket to connect to. E.g.: 'ssh://root@example.org', 'unix:///some/path/docker.sock'")
-	runCmd.Flags().BoolVarP(&opts.privileged, "privileged", "", false, "Give extended privileges to the process.")
-	runCmd.Flags().BoolVarP(&opts.root, "root", "", false, "Attach as root user (uid = 0).")
-	runCmd.Flags().StringVarP(&opts.shell, "shell", "", "", "Select a shell. Supported: \"bash\", \"fish\", \"zsh\", \"auto\". (default auto)")
-
-	return runCmd
+	cmd.Flags().IntVar(&opts.index, "index", 0, "index of the container if service has multiple replicas")
+	cmd.Flags().StringVar(&opts.shell, "shell", "", "Select a shell. Supported: \"bash\", \"fish\", \"zsh\", \"auto\". (default auto)")
+	cmd.Flags().StringVar(&opts.host, "host", "", "Daemon docker socket to connect to. E.g.: 'ssh://root@example.org', 'unix:///some/path/docker.sock'")
+	cmd.Flags().StringVarP(&opts.Command, "command", "c", "", "Evaluate the specified commands instead, passing additional positional arguments through $argv.")
+	//cmd.Flags().BoolVar(&opts.privileged, "privileged", false, "Give extended privileges to the process.")
+	//cmd.Flags().BoolVar(&opts.root, "root", false, "Attach as root user (uid = 0).")
+	return cmd
 }
 
 func runDebug(ctx context.Context, dockerCli command.Cli, backend api.Service, opts debugOptions) error {
 	debugOpts := api.DebugOptions{
-		Command:    opts.Command,
-		Service:    opts.service,
-		Host:       opts.host,
-		Privileged: opts.privileged,
+		Command: opts.Command,
+		Service: opts.service,
+		Host:    opts.host,
+		Shell:   opts.shell,
+		//Privileged: opts.privileged,
+		//Root:       opts.root,
 	}
-	service := []string{opts.service}
-	project, err := opts.ToProject(dockerCli, service)
+	project, err := opts.ToProject(dockerCli, []string{opts.service})
 	if err != nil {
 		return err
 	}
