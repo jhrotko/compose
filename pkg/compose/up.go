@@ -25,9 +25,11 @@ import (
 
 	"github.com/compose-spec/compose-go/v2/types"
 	"github.com/docker/cli/cli"
+	"github.com/docker/compose/v2/cmd/formatter"
 	"github.com/docker/compose/v2/internal/tracing"
 	"github.com/docker/compose/v2/pkg/api"
 	"github.com/docker/compose/v2/pkg/progress"
+	"github.com/eiannone/keyboard"
 	"github.com/hashicorp/go-multierror"
 )
 
@@ -71,10 +73,15 @@ func (s *composeService) Up(ctx context.Context, project *types.Project, options
 
 	doneCh := make(chan bool)
 	eg.Go(func() error {
+		kEvents, err := keyboard.GetKeys(100)
+		if err != nil {
+			panic(err)
+		}
+		defer keyboard.Close()
 		first := true
 		gracefulTeardown := func() {
 			printer.Cancel()
-			fmt.Fprintln(s.stdinfo(), "Gracefully stopping... (press Ctrl+C again to force)")
+			fmt.Fprintln(s.stdinfo(), "\033[KGracefully stopping... (press Ctrl+C again to force)")
 			eg.Go(func() error {
 				err := s.Stop(context.Background(), project.Name, api.StopOptions{
 					Services: options.Create.Services,
@@ -88,6 +95,36 @@ func (s *composeService) Up(ctx context.Context, project *types.Project, options
 		}
 		for {
 			select {
+			case event := <-kEvents:
+				switch key := event.Key; key {
+				case keyboard.KeyCtrlC:
+					keyboard.Close()
+					formatter.KeyboardInfo.ClearInfo()
+					gracefulTeardown()
+				case keyboard.KeyCtrlG:
+					link := fmt.Sprintf("docker-desktop://dashboard/apps/%s", project.Name)
+					// err := fmt.Errorf("OH NO!\n")
+					// if err != nil {
+					// 	fmt.Print("\0337")                          // save cursor position
+					// 	fmt.Println("\033[0;0H")                    // Move to top
+					// 	fmt.Printf("\033[0;34m")                    //change color
+					// 	fmt.Printf("\033[%d;0H", goterm.Height()-1) // Move to last line
+					// 	fmt.Printf("\033[K%s", err.Error())
+					// 	// fmt.Println("\033[0m") // restore color
+					// 	fmt.Println("\033[u") //restore
+					// }
+					// err := open.Run(link)
+					fmt.Println("link: ", link)
+				// if err != nil {
+				// 	fmt.Fprintln(s.stdinfo(), "Could not open Docker Desktop")
+				// }
+				case keyboard.KeyEnter:
+					formatter.KeyboardInfo.PrintEnter()
+				default:
+					if key != 0 {
+						fmt.Println("key pressed: ", key)
+					}
+				}
 			case <-doneCh:
 				return nil
 			case <-ctx.Done():

@@ -102,19 +102,41 @@ func (l *logConsumer) Err(container, message string) {
 	l.write(l.stderr, container, message)
 }
 
+var navColor = makeColorFunc("90")
+
 func (l *logConsumer) write(w io.Writer, container, message string) {
 	if l.ctx.Err() != nil {
 		return
 	}
-	p := l.getPresenter(container)
-	timestamp := time.Now().Format(jsonmessage.RFC3339NanoFixed)
-	for _, line := range strings.Split(message, "\n") {
-		if l.timestamp {
-			fmt.Fprintf(w, "%s%s%s\n", p.prefix, timestamp, line)
-		} else {
-			fmt.Fprintf(w, "%s%s\n", p.prefix, line)
+	// height := goterm.Height()
+
+	// fmt.Print("\0337")
+	// // Move to last line
+	// fmt.Printf("\033[%d;0H", height)
+	// // clear line
+	// fmt.Print("\033[0K")
+	// // restore cursor position
+	// fmt.Print("\0338")
+	KeyboardInfo.PrintKeyboardInfo(func() {
+		p := l.getPresenter(container)
+		timestamp := time.Now().Format(jsonmessage.RFC3339NanoFixed)
+		for _, line := range strings.Split(message, "\n") {
+			if l.timestamp {
+				fmt.Fprintf(w, "\033[K%s%s%s\n", p.prefix, timestamp, line)
+			} else {
+				fmt.Fprintf(w, "\033[K%s%s\n", p.prefix, line)
+			}
 		}
-	}
+	}, fmt.Errorf("OH NO"))
+
+	// // save cursor position
+	// fmt.Print("\0337")
+	// // Move to last line
+	// fmt.Printf("\033[%d;0H", height)
+	// // clear line
+	// fmt.Print("\033[K" + navColor("  >> [CTRL+G] open project in Docker Desktop [$] get more features"))
+	// // restore cursor position
+	// fmt.Print("\0338")
 }
 
 func (l *logConsumer) Status(container, msg string) {

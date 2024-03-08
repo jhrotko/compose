@@ -54,6 +54,8 @@ require (
 	gotest.tools/v3 v3.5.1
 )
 
+require github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966 // indirect
+
 require (
 	dario.cat/mergo v1.0.0 // indirect
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20230811130428-ced1acdcaa24 // indirect
@@ -82,6 +84,7 @@ require (
 	github.com/docker/docker-credential-helpers v0.8.0 // indirect
 	github.com/docker/go v1.5.1-1.0.20160303222718-d30aec9fd63c // indirect
 	github.com/docker/go-metrics v0.0.1 // indirect
+	github.com/eiannone/keyboard v0.0.0-20220611211555-0d226195f203
 	github.com/emicklei/go-restful/v3 v3.10.1 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fvbommel/sortorder v1.0.2 // indirect
