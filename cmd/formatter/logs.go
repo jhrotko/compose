@@ -127,7 +127,7 @@ func (l *logConsumer) write(w io.Writer, container, message string) {
 				fmt.Fprintf(w, "\033[K%s%s\n", p.prefix, line)
 			}
 		}
-	}, fmt.Errorf("OH NO"))
+	})
 
 	// // save cursor position
 	// fmt.Print("\0337")

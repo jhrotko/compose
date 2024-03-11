@@ -31,6 +31,7 @@ import (
 	"github.com/docker/compose/v2/pkg/progress"
 	"github.com/eiannone/keyboard"
 	"github.com/hashicorp/go-multierror"
+	"github.com/skratchdot/open-golang/open"
 )
 
 func (s *composeService) Up(ctx context.Context, project *types.Project, options api.UpOptions) error { //nolint:gocyclo
@@ -103,25 +104,16 @@ func (s *composeService) Up(ctx context.Context, project *types.Project, options
 					gracefulTeardown()
 				case keyboard.KeyCtrlG:
 					link := fmt.Sprintf("docker-desktop://dashboard/apps/%s", project.Name)
-					// err := fmt.Errorf("OH NO!\n")
-					// if err != nil {
-					// 	fmt.Print("\0337")                          // save cursor position
-					// 	fmt.Println("\033[0;0H")                    // Move to top
-					// 	fmt.Printf("\033[0;34m")                    //change color
-					// 	fmt.Printf("\033[%d;0H", goterm.Height()-1) // Move to last line
-					// 	fmt.Printf("\033[K%s", err.Error())
-					// 	// fmt.Println("\033[0m") // restore color
-					// 	fmt.Println("\033[u") //restore
-					// }
-					// err := open.Run(link)
-					fmt.Println("link: ", link)
-				// if err != nil {
-				// 	fmt.Fprintln(s.stdinfo(), "Could not open Docker Desktop")
-				// }
+					err := open.Run(link)
+					if err != nil {
+						formatter.KeyboardInfo.SError("Could not open Docker Desktop")
+					} else {
+						formatter.KeyboardInfo.Error(nil)
+					}
 				case keyboard.KeyEnter:
 					formatter.KeyboardInfo.PrintEnter()
 				default:
-					if key != 0 {
+					if key != 0 { // If some key is pressed
 						fmt.Println("key pressed: ", key)
 					}
 				}
