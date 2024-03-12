@@ -1,18 +1,33 @@
 package formatter
 
 import (
+	"context"
 	"fmt"
+	"strings"
 
 	"github.com/buger/goterm"
+	"github.com/docker/compose/v2/pkg/watch"
 )
 
 type LogKeyboard struct {
-	err     error
-	started bool
+	err                   error
+	started               bool
+	IsDockerDesktopActive bool
+	Watcher               watch.Notify
+	Watching              bool
+	Ctx                   context.Context
+	Cancel                context.CancelFunc
 }
 
-var KeyboardInfo = LogKeyboard{}
+var KeyboardInfo = LogKeyboard{Watching: true}
 var errorColor = "\x1b[1;33m"
+
+func (lk *LogKeyboard) NewContext(ctx context.Context) context.CancelFunc {
+	ctx, cancel := context.WithCancel(ctx)
+	lk.Ctx = ctx
+	lk.Cancel = cancel
+	return cancel
+}
 
 func (lk *LogKeyboard) PrintKeyboardInfo(print func()) {
 	fmt.Print("\033[?25l")        // hide cursor
@@ -51,8 +66,23 @@ func (lk *LogKeyboard) printInfo() {
 	}
 	fmt.Printf("\033[%d;0H", height) // Move to last line
 	// clear line
-	fmt.Print("\033[K" + navColor("  >> [CTRL+G] open project in Docker Desktop [$] get more features"))
+	lk.infoMessage()
 	fmt.Print("\0338") // restore cursor position
+}
+
+func (lk *LogKeyboard) infoMessage() {
+	options := navColor("  Options:  ")
+	if lk.IsDockerDesktopActive {
+		options = options + keyColor("^V") + navColor("iew containers in Docker Desktop")
+	}
+	if lk.Watching {
+		if strings.Contains(options, "Docker Desktop") {
+			options = options + navColor(", ")
+		}
+		options = options + navColor("Enable ") + keyColor("^W") + navColor("atch Mode")
+	}
+
+	fmt.Print("\033[K" + options)
 }
 
 func (lk *LogKeyboard) ClearInfo() {

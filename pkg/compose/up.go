@@ -78,6 +78,10 @@ func (s *composeService) Up(ctx context.Context, project *types.Project, options
 		if err != nil {
 			panic(err)
 		}
+		// formatter.KeyboardInfo.IsDockerDesktopActive = s.isDesktopIntegrationActive()
+		formatter.KeyboardInfo.IsDockerDesktopActive = true
+		// formatter.KeyboardInfo.Watching = s.shouldWatch(project)
+		formatter.KeyboardInfo.Watching = true
 		defer keyboard.Close()
 		first := true
 		gracefulTeardown := func() {
@@ -103,12 +107,36 @@ func (s *composeService) Up(ctx context.Context, project *types.Project, options
 					formatter.KeyboardInfo.ClearInfo()
 					gracefulTeardown()
 				case keyboard.KeyCtrlG:
-					link := fmt.Sprintf("docker-desktop://dashboard/apps/%s", project.Name)
-					err := open.Run(link)
-					if err != nil {
-						formatter.KeyboardInfo.SError("Could not open Docker Desktop")
-					} else {
-						formatter.KeyboardInfo.Error(nil)
+					if formatter.KeyboardInfo.IsDockerDesktopActive {
+						link := fmt.Sprintf("docker-desktop://dashboard/apps/%s", project.Name)
+						err := open.Run(link)
+						if err != nil {
+							formatter.KeyboardInfo.SError("Could not open Docker Desktop")
+						} else {
+							formatter.KeyboardInfo.Error(nil)
+						}
+					}
+				case keyboard.KeyCtrlW:
+					if formatter.KeyboardInfo.Watching {
+						formatter.KeyboardInfo.Watching = !formatter.KeyboardInfo.Watching
+						fmt.Println("watching shortcut", formatter.KeyboardInfo.Watching)
+
+						if formatter.KeyboardInfo.Watching {
+							formatter.KeyboardInfo.Cancel()
+						} else {
+							formatter.KeyboardInfo.NewContext(ctx)
+							quit := make(chan error)
+							go func() {
+								buildOpts := *options.Create.Build
+								buildOpts.Quiet = true
+								err := s.Watch(formatter.KeyboardInfo.Ctx, project, options.Start.Services, api.WatchOptions{
+									Build: &buildOpts,
+									LogTo: options.Start.Attach,
+								})
+								quit <- err
+							}()
+							formatter.KeyboardInfo.Error(<-quit)
+						}
 					}
 				case keyboard.KeyEnter:
 					formatter.KeyboardInfo.PrintEnter()

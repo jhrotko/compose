@@ -103,11 +103,21 @@ func (l *logConsumer) Err(container, message string) {
 }
 
 var navColor = makeColorFunc("90")
+var keyColor = makeColorFunc("37")
 
 func (l *logConsumer) write(w io.Writer, container, message string) {
 	if l.ctx.Err() != nil {
 		return
 	}
+	// p := l.getPresenter(container)
+	// timestamp := time.Now().Format(jsonmessage.RFC3339NanoFixed)
+	// for _, line := range strings.Split(message, "\n") {
+	// 	if l.timestamp {
+	// 		fmt.Fprintf(w, "\033[K%s%s%s\n", p.prefix, timestamp, line)
+	// 	} else {
+	// 		fmt.Fprintf(w, "\033[K%s%s\n", p.prefix, line)
+	// 	}
+	// }
 	KeyboardInfo.PrintKeyboardInfo(func() {
 		p := l.getPresenter(container)
 		timestamp := time.Now().Format(jsonmessage.RFC3339NanoFixed)
