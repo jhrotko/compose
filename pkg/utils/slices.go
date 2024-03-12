@@ -16,7 +16,10 @@
 
 package utils
 
-import "reflect"
+import (
+	"reflect"
+	"slices"
+)
 
 // Contains helps to detect if a non-comparable struct is part of an array
 // only use this method if you can't rely on existing golang Contains function of slices (https://pkg.go.dev/golang.org/x/exp/slices#Contains)
@@ -48,4 +51,20 @@ func Filter[T any](elements []T, predicate func(T) bool) []T {
 		}
 	}
 	return filtered
+}
+
+func Copy(m map[string]any) map[string]any {
+	result := make(map[string]any)
+
+	for k, v := range m {
+		switch vT := v.(type) {
+		case []string:
+			result[k] = slices.Clone(vT)
+		case map[string]any:
+			result[k] = Copy(vT)
+		default:
+			result[k] = vT
+		}
+	}
+	return result
 }

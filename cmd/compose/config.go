@@ -34,6 +34,7 @@ import (
 
 	"github.com/docker/compose/v2/pkg/api"
 	"github.com/docker/compose/v2/pkg/compose"
+	"github.com/docker/compose/v2/pkg/utils"
 )
 
 type configOptions struct {
@@ -141,6 +142,7 @@ func withProfiles(dict map[string]any, profiles []string) (map[string]any, error
 	if !ok {
 		return dict, nil
 	}
+	dictCopy := utils.Copy(dict)
 	enabled := []string{}
 	for name, service := range services {
 		// is this service in options profiles?
@@ -164,12 +166,16 @@ func withProfiles(dict map[string]any, profiles []string) (map[string]any, error
 			}
 		}
 	}
+	servicesCopy, ok := dictCopy["services"].(map[string]any)
+	if !ok {
+		return dict, nil ///
+	}
 	for name := range services {
 		if !slices.Contains(enabled, name) {
-			delete(services, name)
+			delete(servicesCopy, name)
 		}
 	}
-	return dict, nil
+	return dictCopy, nil
 }
 
 func runConfig(ctx context.Context, dockerCli command.Cli, opts configOptions, services []string) error {
