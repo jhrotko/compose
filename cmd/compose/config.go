@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
 	"sort"
 	"strings"
 
@@ -135,11 +136,50 @@ func configCommand(p *ProjectOptions, dockerCli command.Cli) *cobra.Command {
 	return cmd
 }
 
+func withProfiles(dict map[string]any, profiles []string) (map[string]any, error) {
+	services, ok := dict["services"].(map[string]any)
+	if !ok {
+		return dict, nil
+	}
+	enabled := []string{}
+	for name, service := range services {
+		// is this service in options profiles?
+		service, ok := service.(map[string]any)
+		if !ok {
+			// should not come here
+			return dict, nil
+		}
+		serviceProfiles, ok := service["profiles"].([]any)
+		if !ok || len(serviceProfiles) == 0 {
+			// This service is always enabled
+			enabled = append(enabled, name)
+			continue
+		}
+
+		for _, p := range profiles {
+			for _, sp := range serviceProfiles {
+				if p == sp {
+					enabled = append(enabled, name)
+				}
+			}
+		}
+	}
+	for name := range services {
+		if !slices.Contains(enabled, name) {
+			delete(services, name)
+		}
+	}
+	return dict, nil
+}
+
 func runConfig(ctx context.Context, dockerCli command.Cli, opts configOptions, services []string) error {
 	model, err := opts.ToModel(ctx, dockerCli, services)
+
 	if err != nil {
 		return err
 	}
+
+	model, err = withProfiles(model, opts.Profiles)
 
 	if opts.resolveImageDigests {
 		err = resolveImageDigests(ctx, dockerCli, model)
