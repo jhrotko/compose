@@ -7,8 +7,6 @@ import (
 )
 
 type LogKeyboard struct {
-	// mutex   sync.Mutex
-	// message string
 	err     error
 	started bool
 }

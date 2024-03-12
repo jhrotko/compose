@@ -108,15 +108,6 @@ func (l *logConsumer) write(w io.Writer, container, message string) {
 	if l.ctx.Err() != nil {
 		return
 	}
-	// height := goterm.Height()
-
-	// fmt.Print("\0337")
-	// // Move to last line
-	// fmt.Printf("\033[%d;0H", height)
-	// // clear line
-	// fmt.Print("\033[0K")
-	// // restore cursor position
-	// fmt.Print("\0338")
 	KeyboardInfo.PrintKeyboardInfo(func() {
 		p := l.getPresenter(container)
 		timestamp := time.Now().Format(jsonmessage.RFC3339NanoFixed)
@@ -128,15 +119,6 @@ func (l *logConsumer) write(w io.Writer, container, message string) {
 			}
 		}
 	})
-
-	// // save cursor position
-	// fmt.Print("\0337")
-	// // Move to last line
-	// fmt.Printf("\033[%d;0H", height)
-	// // clear line
-	// fmt.Print("\033[K" + navColor("  >> [CTRL+G] open project in Docker Desktop [$] get more features"))
-	// // restore cursor position
-	// fmt.Print("\0338")
 }
 
 func (l *logConsumer) Status(container, msg string) {
