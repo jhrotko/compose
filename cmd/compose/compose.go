@@ -216,7 +216,7 @@ func (o *ProjectOptions) ToModel(ctx context.Context, dockerCli command.Cli, ser
 		api.Separator = "_"
 	}
 
-	return options.LoadModel(ctx)
+	return options.LoadModel(ctx, services)
 }
 
 func (o *ProjectOptions) ToProject(ctx context.Context, dockerCli command.Cli, services []string, po ...cli.ProjectOptionsFn) (*types.Project, tracing.Metrics, error) {
