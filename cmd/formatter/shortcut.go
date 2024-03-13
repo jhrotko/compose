@@ -140,12 +140,15 @@ func (lk *LogKeyboard) newContext(ctx context.Context) context.CancelFunc {
 }
 
 func (lk *LogKeyboard) openDockerDesktop(project *types.Project) {
-	if lk.IsDockerDesktopActive {
-		link := fmt.Sprintf("docker-desktop://dashboard/apps/%s", project.Name)
-		err := open.Run(link)
-		if err != nil {
-			lk.Error("View", fmt.Errorf("could not open Docker Desktop"))
-		}
+	if !lk.IsDockerDesktopActive {
+		return
+	}
+	link := fmt.Sprintf("docker-desktop://dashboard/apps/%s", project.Name)
+	fmt.Println("nani")
+	err := open.Run(link)
+	if err != nil {
+		lk.Error("View", fmt.Errorf("Could not open Docker Desktop"))
+
 	}
 }
 
@@ -155,7 +158,6 @@ func (lk *LogKeyboard) StartWatch(ctx context.Context, project *types.Project, o
 		return
 	}
 	lk.switchWatching()
-	fmt.Println("watching", lk.Watch.Watching)
 	if !lk.isWatching() && lk.Watch.Cancel != nil {
 		lk.Watch.Cancel()
 	} else {
@@ -177,6 +179,7 @@ func (lk *LogKeyboard) StartWatch(ctx context.Context, project *types.Project, o
 func (lk *LogKeyboard) HandleKeyEvents(event keyboard.KeyEvent, ctx context.Context, project *types.Project, options api.UpOptions, handleTearDown func()) {
 	switch kRune := event.Rune; kRune {
 	case 'V':
+		fmt.Println("hmmm")
 		lk.openDockerDesktop(project)
 	case 'W':
 		lk.StartWatch(ctx, project, options)
@@ -184,6 +187,9 @@ func (lk *LogKeyboard) HandleKeyEvents(event keyboard.KeyEvent, ctx context.Cont
 	switch key := event.Key; key {
 	case keyboard.KeyCtrlC:
 		keyboard.Close()
+		if lk.Watch.Watching && lk.Watch.Cancel != nil {
+			lk.Watch.Cancel()
+		}
 		lk.clearInfo()
 		handleTearDown()
 	case keyboard.KeyEnter:
