@@ -3,6 +3,8 @@ package formatter
 import (
 	"context"
 	"fmt"
+	"os"
+	"os/exec"
 	"time"
 
 	"github.com/buger/goterm"
@@ -32,16 +34,20 @@ type LogKeyboard struct {
 	started               bool
 	IsDockerDesktopActive bool
 	IsWatchConfigured     bool
+	printerStop           func()
+	printerStart          func()
 }
 
 var KeyboardManager *LogKeyboard
 
 var errorColor = "\x1b[1;33m"
 
-func NewKeyboardManager(isDockerDesktopActive, isWatchConfigured, startWatch bool, watchFn func(ctx context.Context, project *types.Project, services []string, options api.WatchOptions) error) {
+func NewKeyboardManager(isDockerDesktopActive, isWatchConfigured, startWatch bool, watchFn func(ctx context.Context, project *types.Project, services []string, options api.WatchOptions) error, stop func(), start func()) {
 	km := LogKeyboard{}
 	km.IsDockerDesktopActive = isDockerDesktopActive
 	km.IsWatchConfigured = isWatchConfigured
+	km.printerStart = start
+	km.printerStop = stop
 	// if up --watch and there is a watch config, we should start with watch running
 	km.Watch.Watching = isWatchConfigured && startWatch
 	km.Watch.WatchFn = watchFn
@@ -102,7 +108,8 @@ func (lk *LogKeyboard) infoMessage() {
 		watchInfo = navColor(", ")
 	}
 	watchInfo = watchInfo + navColor("Enable ") + keyColor("^W") + navColor("atch Mode")
-	options = options + openDDInfo + watchInfo
+	debugOptions := navColor(", ") + keyColor("^D") + navColor("ebug")
+	options = options + openDDInfo + watchInfo + debugOptions
 
 	fmt.Print("\033[K" + options)
 }
@@ -144,7 +151,6 @@ func (lk *LogKeyboard) openDockerDesktop(project *types.Project) {
 		return
 	}
 	link := fmt.Sprintf("docker-desktop://dashboard/apps/%s", project.Name)
-	fmt.Println("nani")
 	err := open.Run(link)
 	if err != nil {
 		lk.Error("View", fmt.Errorf("Could not open Docker Desktop"))
@@ -176,13 +182,33 @@ func (lk *LogKeyboard) StartWatch(ctx context.Context, project *types.Project, o
 	}
 }
 
+func (lk *LogKeyboard) debug() {
+	cmd := exec.Command("docker", "debug", "keep-not-latest-app-1")
+	cmd.Stdout = os.Stdout
+	cmd.Stdin = os.Stdin
+	cmd.Stderr = os.Stderr
+
+	lk.printerStop()
+	if err := cmd.Start(); err != nil {
+		lk.printerStart()
+		lk.Error("Debug", fmt.Errorf("Could not start debug process."))
+		return
+	}
+	err := cmd.Wait()
+	lk.printerStart()
+	if err != nil {
+		lk.Error("Debug", err)
+	}
+}
+
 func (lk *LogKeyboard) HandleKeyEvents(event keyboard.KeyEvent, ctx context.Context, project *types.Project, options api.UpOptions, handleTearDown func()) {
 	switch kRune := event.Rune; kRune {
 	case 'V':
-		fmt.Println("hmmm")
 		lk.openDockerDesktop(project)
 	case 'W':
 		lk.StartWatch(ctx, project, options)
+	case 'D':
+		lk.debug()
 	}
 	switch key := event.Key; key {
 	case keyboard.KeyCtrlC:
