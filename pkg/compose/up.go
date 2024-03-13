@@ -31,7 +31,6 @@ import (
 	"github.com/docker/compose/v2/pkg/progress"
 	"github.com/eiannone/keyboard"
 	"github.com/hashicorp/go-multierror"
-	"github.com/skratchdot/open-golang/open"
 )
 
 func (s *composeService) Up(ctx context.Context, project *types.Project, options api.UpOptions) error { //nolint:gocyclo
@@ -78,10 +77,11 @@ func (s *composeService) Up(ctx context.Context, project *types.Project, options
 		if err != nil {
 			panic(err)
 		}
-		// formatter.KeyboardInfo.IsDockerDesktopActive = s.isDesktopIntegrationActive()
-		formatter.KeyboardManager.IsDockerDesktopActive = true
-		// formatter.KeyboardInfo.Watching = s.shouldWatch(project)
+		formatter.NewKeyboardManager(true, true, s.Watch) // change after test
+		// kManager.IsDockerDesktopActive = s.isDesktopIntegrationActive()
+		// kManager.IsWatchConfigured = s.shouldWatch(project)
 		defer keyboard.Close()
+
 		first := true
 		gracefulTeardown := func() {
 			printer.Cancel()
@@ -100,50 +100,7 @@ func (s *composeService) Up(ctx context.Context, project *types.Project, options
 		for {
 			select {
 			case event := <-kEvents:
-				switch key := event.Key; key {
-				case keyboard.KeyCtrlC:
-					keyboard.Close()
-					formatter.KeyboardManager.ClearInfo()
-					gracefulTeardown()
-				case keyboard.KeyCtrlG:
-					if formatter.KeyboardManager.IsDockerDesktopActive {
-						link := fmt.Sprintf("docker-desktop://dashboard/apps/%s", project.Name)
-						err := open.Run(link)
-						if err != nil {
-							formatter.KeyboardManager.SError("Could not open Docker Desktop")
-						} else {
-							formatter.KeyboardManager.Error(nil)
-						}
-					}
-				case keyboard.KeyCtrlW:
-					if formatter.KeyboardManager.Watching {
-						formatter.KeyboardManager.Watching = !formatter.KeyboardManager.Watching
-						fmt.Println("watching shortcut", formatter.KeyboardManager.Watching)
-
-						if formatter.KeyboardManager.Watching {
-							formatter.KeyboardManager.Cancel()
-						} else {
-							formatter.KeyboardManager.NewContext(ctx)
-							errW := make(chan error)
-							go func() {
-								buildOpts := *options.Create.Build
-								buildOpts.Quiet = true
-								err := s.Watch(formatter.KeyboardManager.Ctx, project, options.Start.Services, api.WatchOptions{
-									Build: &buildOpts,
-									LogTo: options.Start.Attach,
-								})
-								errW <- err
-							}()
-							formatter.KeyboardManager.Error(<-errW)
-						}
-					}
-				case keyboard.KeyEnter:
-					formatter.KeyboardManager.PrintEnter()
-				default:
-					if key != 0 { // If some key is pressed
-						fmt.Println("key pressed: ", key)
-					}
-				}
+				formatter.KeyboardManager.HandleKeyEvents(ctx, event, project, options, gracefulTeardown)
 			case <-doneCh:
 				return nil
 			case <-ctx.Done():

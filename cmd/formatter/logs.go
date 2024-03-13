@@ -109,16 +109,7 @@ func (l *logConsumer) write(w io.Writer, container, message string) {
 	if l.ctx.Err() != nil {
 		return
 	}
-	// p := l.getPresenter(container)
-	// timestamp := time.Now().Format(jsonmessage.RFC3339NanoFixed)
-	// for _, line := range strings.Split(message, "\n") {
-	// 	if l.timestamp {
-	// 		fmt.Fprintf(w, "%s%s%s\n", p.prefix, timestamp, line)
-	// 	} else {
-	// 		fmt.Fprintf(w, "%s%s\n", p.prefix, line)
-	// 	}
-	// }
-	KeyboardManager.PrintKeyboardInfo(func() {
+	print := func() {
 		p := l.getPresenter(container)
 		timestamp := time.Now().Format(jsonmessage.RFC3339NanoFixed)
 		for _, line := range strings.Split(message, "\n") {
@@ -128,7 +119,13 @@ func (l *logConsumer) write(w io.Writer, container, message string) {
 				fmt.Fprintf(w, "\033[K%s%s\n", p.prefix, line)
 			}
 		}
-	})
+	}
+	if KeyboardManager != nil {
+		KeyboardManager.PrintKeyboardInfo(print)
+	} else {
+		// FIXME: Need to handle this case
+		print()
+	}
 }
 
 func (l *logConsumer) Status(container, msg string) {
