@@ -79,9 +79,8 @@ func (s *composeService) Up(ctx context.Context, project *types.Project, options
 			panic(err)
 		}
 		// formatter.KeyboardInfo.IsDockerDesktopActive = s.isDesktopIntegrationActive()
-		formatter.KeyboardInfo.IsDockerDesktopActive = true
+		formatter.KeyboardManager.IsDockerDesktopActive = true
 		// formatter.KeyboardInfo.Watching = s.shouldWatch(project)
-		formatter.KeyboardInfo.Watching = true
 		defer keyboard.Close()
 		first := true
 		gracefulTeardown := func() {
@@ -104,42 +103,42 @@ func (s *composeService) Up(ctx context.Context, project *types.Project, options
 				switch key := event.Key; key {
 				case keyboard.KeyCtrlC:
 					keyboard.Close()
-					formatter.KeyboardInfo.ClearInfo()
+					formatter.KeyboardManager.ClearInfo()
 					gracefulTeardown()
 				case keyboard.KeyCtrlG:
-					if formatter.KeyboardInfo.IsDockerDesktopActive {
+					if formatter.KeyboardManager.IsDockerDesktopActive {
 						link := fmt.Sprintf("docker-desktop://dashboard/apps/%s", project.Name)
 						err := open.Run(link)
 						if err != nil {
-							formatter.KeyboardInfo.SError("Could not open Docker Desktop")
+							formatter.KeyboardManager.SError("Could not open Docker Desktop")
 						} else {
-							formatter.KeyboardInfo.Error(nil)
+							formatter.KeyboardManager.Error(nil)
 						}
 					}
 				case keyboard.KeyCtrlW:
-					if formatter.KeyboardInfo.Watching {
-						formatter.KeyboardInfo.Watching = !formatter.KeyboardInfo.Watching
-						fmt.Println("watching shortcut", formatter.KeyboardInfo.Watching)
+					if formatter.KeyboardManager.Watching {
+						formatter.KeyboardManager.Watching = !formatter.KeyboardManager.Watching
+						fmt.Println("watching shortcut", formatter.KeyboardManager.Watching)
 
-						if formatter.KeyboardInfo.Watching {
-							formatter.KeyboardInfo.Cancel()
+						if formatter.KeyboardManager.Watching {
+							formatter.KeyboardManager.Cancel()
 						} else {
-							formatter.KeyboardInfo.NewContext(ctx)
-							quit := make(chan error)
+							formatter.KeyboardManager.NewContext(ctx)
+							errW := make(chan error)
 							go func() {
 								buildOpts := *options.Create.Build
 								buildOpts.Quiet = true
-								err := s.Watch(formatter.KeyboardInfo.Ctx, project, options.Start.Services, api.WatchOptions{
+								err := s.Watch(formatter.KeyboardManager.Ctx, project, options.Start.Services, api.WatchOptions{
 									Build: &buildOpts,
 									LogTo: options.Start.Attach,
 								})
-								quit <- err
+								errW <- err
 							}()
-							formatter.KeyboardInfo.Error(<-quit)
+							formatter.KeyboardManager.Error(<-errW)
 						}
 					}
 				case keyboard.KeyEnter:
-					formatter.KeyboardInfo.PrintEnter()
+					formatter.KeyboardManager.PrintEnter()
 				default:
 					if key != 0 { // If some key is pressed
 						fmt.Println("key pressed: ", key)
