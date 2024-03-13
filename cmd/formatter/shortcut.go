@@ -40,12 +40,12 @@ var errorColor = "\x1b[1;33m"
 
 func NewKeyboardManager(isDockerDesktopActive, isWatchConfigured, startWatch bool, watchFn func(ctx context.Context, project *types.Project, services []string, options api.WatchOptions) error) {
 	km := LogKeyboard{}
-	KeyboardManager = &km
-	KeyboardManager.IsDockerDesktopActive = isDockerDesktopActive
-	KeyboardManager.IsWatchConfigured = isWatchConfigured
+	km.IsDockerDesktopActive = isDockerDesktopActive
+	km.IsWatchConfigured = isWatchConfigured
 	// if up --watch and there is a watch config, we should start with watch running
-	KeyboardManager.Watch.Watching = isWatchConfigured && startWatch
-	KeyboardManager.Watch.WatchFn = watchFn
+	km.Watch.Watching = isWatchConfigured && startWatch
+	km.Watch.WatchFn = watchFn
+	KeyboardManager = &km
 }
 
 func (lk *LogKeyboard) PrintKeyboardInfo(print func()) {
@@ -155,8 +155,8 @@ func (lk *LogKeyboard) StartWatch(ctx context.Context, project *types.Project, o
 		return
 	}
 	lk.switchWatching()
-	if lk.isWatching() {
-		fmt.Println("watching shortcut")
+	fmt.Println("watching", lk.Watch.Watching)
+	if !lk.isWatching() && lk.Watch.Cancel != nil {
 		lk.Watch.Cancel()
 	} else {
 		lk.newContext(ctx)
@@ -174,7 +174,7 @@ func (lk *LogKeyboard) StartWatch(ctx context.Context, project *types.Project, o
 	}
 }
 
-func (lk *LogKeyboard) HandleKeyEvents(ctx context.Context, event keyboard.KeyEvent, project *types.Project, options api.UpOptions, handleTearDown func()) {
+func (lk *LogKeyboard) HandleKeyEvents(event keyboard.KeyEvent, ctx context.Context, project *types.Project, options api.UpOptions, handleTearDown func()) {
 	switch kRune := event.Rune; kRune {
 	case 'V':
 		lk.openDockerDesktop(project)

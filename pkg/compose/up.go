@@ -89,60 +89,41 @@ func (s *composeService) Up(ctx context.Context, project *types.Project, options
 			first = false
 		}
 
+		var kEvents <-chan keyboard.KeyEvent
 		if options.Start.NavigationBar {
-			kEvents, err := keyboard.GetKeys(100)
+			kEvents, err = keyboard.GetKeys(100)
 			if err != nil {
 				panic(err)
 			}
-			formatter.NewKeyboardManager(true, false, options.Start.Watch, s.Watch) // change after test
-			// formatter.NewKeyboardManager(s.isDesktopIntegrationActive(), s.shouldWatch(project), s.Watch)
-			defer keyboard.Close()
-			for {
-				select {
-				case event := <-kEvents:
-					formatter.KeyboardManager.HandleKeyEvents(ctx, event, project, options, gracefulTeardown)
-				case <-doneCh:
-					return nil
-				case <-ctx.Done():
-					if first {
-						gracefulTeardown()
-					}
-				case <-signalChan:
-					if first {
-						gracefulTeardown()
-					} else {
-						eg.Go(func() error {
-							return s.Kill(context.Background(), project.Name, api.KillOptions{
-								Services: options.Create.Services,
-								Project:  project,
-							})
-						})
-						return nil
-					}
-				}
+			formatter.NewKeyboardManager(true, s.shouldWatch(project), options.Start.Watch, s.Watch) // change after test
+			if formatter.KeyboardManager.Watch.Watching {
+				formatter.KeyboardManager.StartWatch(ctx, project, options)
 			}
-		} else {
-			for {
-				select {
-				case <-doneCh:
-					return nil
-				case <-ctx.Done():
-					if first {
-						gracefulTeardown()
-					}
-				case <-signalChan:
-					if first {
-						gracefulTeardown()
-					} else {
-						eg.Go(func() error {
-							return s.Kill(context.Background(), project.Name, api.KillOptions{
-								Services: options.Create.Services,
-								Project:  project,
-							})
-						})
-						return nil
-					}
+			// formatter.NewKeyboardManager(s.isDesktopIntegrationActive(), s.shouldWatch(project), options.Start.Watch, s.Watch)
+			defer keyboard.Close()
+		}
+		for {
+			select {
+			case <-doneCh:
+				return nil
+			case <-ctx.Done():
+				if first {
+					gracefulTeardown()
 				}
+			case <-signalChan:
+				if first {
+					gracefulTeardown()
+				} else {
+					eg.Go(func() error {
+						return s.Kill(context.Background(), project.Name, api.KillOptions{
+							Services: options.Create.Services,
+							Project:  project,
+						})
+					})
+					return nil
+				}
+			case event := <-kEvents:
+				formatter.KeyboardManager.HandleKeyEvents(event, ctx, project, options, gracefulTeardown)
 			}
 		}
 	})
