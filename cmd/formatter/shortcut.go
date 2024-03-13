@@ -3,7 +3,6 @@ package formatter
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/buger/goterm"
@@ -39,12 +38,12 @@ var KeyboardManager *LogKeyboard
 
 var errorColor = "\x1b[1;33m"
 
-func NewKeyboardManager(isDockerDesktopActive, IsWatchConfigured bool, watchFn func(ctx context.Context, project *types.Project, services []string, options api.WatchOptions) error) {
+func NewKeyboardManager(isDockerDesktopActive, isWatchConfigured bool, watchFn func(ctx context.Context, project *types.Project, services []string, options api.WatchOptions) error) {
 	km := LogKeyboard{}
 	KeyboardManager = &km
 	KeyboardManager.Watch.Watching = true
-	KeyboardManager.IsDockerDesktopActive = true
-	KeyboardManager.IsWatchConfigured = true
+	KeyboardManager.IsDockerDesktopActive = isDockerDesktopActive
+	KeyboardManager.IsWatchConfigured = isWatchConfigured
 	KeyboardManager.Watch.WatchFn = watchFn
 }
 
@@ -62,9 +61,9 @@ func (lk *LogKeyboard) PrintKeyboardInfo(print func()) {
 	lk.printInfo()
 }
 
-func (lk *LogKeyboard) Error(err error) {
+func (lk *LogKeyboard) Error(prefix string, err error) {
 	lk.ErrorHandle.errStart = time.Now()
-	lk.ErrorHandle.err = err
+	lk.ErrorHandle.err = fmt.Errorf("[%s]  %s", prefix, err.Error())
 }
 
 // This avoids incorrect printing at the end of the terminal
@@ -77,7 +76,7 @@ func (lk *LogKeyboard) createBuffer() {
 func (lk *LogKeyboard) printError(height int) {
 	if lk.ErrorHandle.err != nil && int(time.Since(lk.ErrorHandle.errStart).Seconds()) < DISPLAY_ERROR_TIME {
 		fmt.Printf("\033[%d;0H", height-1) // Move to before last line
-		fmt.Printf("\033[K" + errorColor + "[Error]   " + lk.ErrorHandle.err.Error())
+		fmt.Printf("\033[K" + errorColor + lk.ErrorHandle.err.Error())
 	}
 }
 
@@ -93,15 +92,16 @@ func (lk *LogKeyboard) printInfo() {
 
 func (lk *LogKeyboard) infoMessage() {
 	options := navColor("  Options:  ")
+	var openDDInfo string
 	if lk.IsDockerDesktopActive {
-		options = options + keyColor("^V") + navColor("iew containers in Docker Desktop")
+		openDDInfo = keyColor("^V") + navColor("iew containers in Docker Desktop")
 	}
-	if lk.IsWatchConfigured {
-		if strings.Contains(options, "Docker Desktop") {
-			options = options + navColor(", ")
-		}
-		options = options + navColor("Enable ") + keyColor("^W") + navColor("atch Mode")
+	var watchInfo string
+	if openDDInfo != "" {
+		watchInfo = navColor(", ")
 	}
+	watchInfo = watchInfo + navColor("Enable ") + keyColor("^W") + navColor("atch Mode")
+	options = options + openDDInfo + watchInfo
 
 	fmt.Print("\033[K" + options)
 }
@@ -143,13 +143,18 @@ func (lk *LogKeyboard) openDockerDesktop(project *types.Project) {
 		link := fmt.Sprintf("docker-desktop://dashboard/apps/%s", project.Name)
 		err := open.Run(link)
 		if err != nil {
-			lk.Error(fmt.Errorf("could not open Docker Desktop"))
+			lk.Error("View", fmt.Errorf("could not open Docker Desktop"))
 		} else {
-			lk.Error(nil)
+			lk.Error("", nil)
 		}
 	}
 }
+
 func (lk *LogKeyboard) StartWatch(ctx context.Context, project *types.Project, options api.UpOptions) {
+	if !lk.IsWatchConfigured {
+		lk.Error("Watch", fmt.Errorf("Watch is not yet configured. Learn more: https://docs.docker.com/compose/file-watch/"))
+		return
+	}
 	lk.switchWatching()
 	if lk.isWatching() {
 		fmt.Println("watching shortcut")
@@ -166,7 +171,7 @@ func (lk *LogKeyboard) StartWatch(ctx context.Context, project *types.Project, o
 			})
 			errW <- err
 		}()
-		lk.Error(<-errW)
+		lk.Error("Watch", <-errW)
 	}
 }
 

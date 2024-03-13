@@ -77,7 +77,7 @@ func (s *composeService) Up(ctx context.Context, project *types.Project, options
 		if err != nil {
 			panic(err)
 		}
-		formatter.NewKeyboardManager(true, true, s.Watch) // change after test
+		formatter.NewKeyboardManager(true, false, s.Watch) // change after test
 		// kManager.IsDockerDesktopActive = s.isDesktopIntegrationActive()
 		// kManager.IsWatchConfigured = s.shouldWatch(project)
 		defer keyboard.Close()
