@@ -38,12 +38,13 @@ var KeyboardManager *LogKeyboard
 
 var errorColor = "\x1b[1;33m"
 
-func NewKeyboardManager(isDockerDesktopActive, isWatchConfigured bool, watchFn func(ctx context.Context, project *types.Project, services []string, options api.WatchOptions) error) {
+func NewKeyboardManager(isDockerDesktopActive, isWatchConfigured, startWatch bool, watchFn func(ctx context.Context, project *types.Project, services []string, options api.WatchOptions) error) {
 	km := LogKeyboard{}
 	KeyboardManager = &km
-	KeyboardManager.Watch.Watching = true
 	KeyboardManager.IsDockerDesktopActive = isDockerDesktopActive
 	KeyboardManager.IsWatchConfigured = isWatchConfigured
+	// if up --watch and there is a watch config, we should start with watch running
+	KeyboardManager.Watch.Watching = isWatchConfigured && startWatch
 	KeyboardManager.Watch.WatchFn = watchFn
 }
 
@@ -144,8 +145,6 @@ func (lk *LogKeyboard) openDockerDesktop(project *types.Project) {
 		err := open.Run(link)
 		if err != nil {
 			lk.Error("View", fmt.Errorf("could not open Docker Desktop"))
-		} else {
-			lk.Error("", nil)
 		}
 	}
 }
@@ -189,9 +188,5 @@ func (lk *LogKeyboard) HandleKeyEvents(ctx context.Context, event keyboard.KeyEv
 		handleTearDown()
 	case keyboard.KeyEnter:
 		lk.PrintEnter()
-	default:
-		if key != 0 { // If some key is pressed
-			fmt.Println("key pressed: ", key)
-		}
 	}
 }

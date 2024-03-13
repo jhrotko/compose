@@ -73,15 +73,6 @@ func (s *composeService) Up(ctx context.Context, project *types.Project, options
 
 	doneCh := make(chan bool)
 	eg.Go(func() error {
-		kEvents, err := keyboard.GetKeys(100)
-		if err != nil {
-			panic(err)
-		}
-		formatter.NewKeyboardManager(true, false, s.Watch) // change after test
-		// kManager.IsDockerDesktopActive = s.isDesktopIntegrationActive()
-		// kManager.IsWatchConfigured = s.shouldWatch(project)
-		defer keyboard.Close()
-
 		first := true
 		gracefulTeardown := func() {
 			printer.Cancel()
@@ -97,27 +88,60 @@ func (s *composeService) Up(ctx context.Context, project *types.Project, options
 			})
 			first = false
 		}
-		for {
-			select {
-			case event := <-kEvents:
-				formatter.KeyboardManager.HandleKeyEvents(ctx, event, project, options, gracefulTeardown)
-			case <-doneCh:
-				return nil
-			case <-ctx.Done():
-				if first {
-					gracefulTeardown()
-				}
-			case <-signalChan:
-				if first {
-					gracefulTeardown()
-				} else {
-					eg.Go(func() error {
-						return s.Kill(context.Background(), project.Name, api.KillOptions{
-							Services: options.Create.Services,
-							Project:  project,
-						})
-					})
+
+		if options.Start.NavigationBar {
+			kEvents, err := keyboard.GetKeys(100)
+			if err != nil {
+				panic(err)
+			}
+			formatter.NewKeyboardManager(true, false, options.Start.Watch, s.Watch) // change after test
+			// formatter.NewKeyboardManager(s.isDesktopIntegrationActive(), s.shouldWatch(project), s.Watch)
+			defer keyboard.Close()
+			for {
+				select {
+				case event := <-kEvents:
+					formatter.KeyboardManager.HandleKeyEvents(ctx, event, project, options, gracefulTeardown)
+				case <-doneCh:
 					return nil
+				case <-ctx.Done():
+					if first {
+						gracefulTeardown()
+					}
+				case <-signalChan:
+					if first {
+						gracefulTeardown()
+					} else {
+						eg.Go(func() error {
+							return s.Kill(context.Background(), project.Name, api.KillOptions{
+								Services: options.Create.Services,
+								Project:  project,
+							})
+						})
+						return nil
+					}
+				}
+			}
+		} else {
+			for {
+				select {
+				case <-doneCh:
+					return nil
+				case <-ctx.Done():
+					if first {
+						gracefulTeardown()
+					}
+				case <-signalChan:
+					if first {
+						gracefulTeardown()
+					} else {
+						eg.Go(func() error {
+							return s.Kill(context.Background(), project.Name, api.KillOptions{
+								Services: options.Create.Services,
+								Project:  project,
+							})
+						})
+						return nil
+					}
 				}
 			}
 		}
@@ -138,7 +162,7 @@ func (s *composeService) Up(ctx context.Context, project *types.Project, options
 		return err
 	})
 
-	if options.Start.Watch {
+	if options.Start.Watch && !options.Start.NavigationBar {
 		eg.Go(func() error {
 			buildOpts := *options.Create.Build
 			buildOpts.Quiet = true
