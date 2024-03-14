@@ -123,7 +123,6 @@ func (l *logConsumer) write(w io.Writer, container, message string) {
 	if KeyboardManager != nil {
 		KeyboardManager.PrintKeyboardInfo(print)
 	} else {
-		// FIXME: Need to handle this case
 		print()
 	}
 }

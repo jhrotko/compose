@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"os/signal"
 	"syscall"
 	"time"
 
@@ -38,6 +37,7 @@ type LogKeyboard struct {
 	started               bool
 	IsDockerDesktopActive bool
 	IsWatchConfigured     bool
+	shouldPrintInfo       bool
 	printerStop           func()
 	printerStart          func()
 }
@@ -52,6 +52,7 @@ func NewKeyboardManager(isDockerDesktopActive, isWatchConfigured, startWatch boo
 	km.IsWatchConfigured = isWatchConfigured
 	km.printerStart = start
 	km.printerStop = stop
+	km.shouldPrintInfo = true
 	// if up --watch and there is a watch config, we should start with watch running
 	km.Watch.Watching = isWatchConfigured && startWatch
 	km.Watch.WatchFn = watchFn
@@ -60,6 +61,9 @@ func NewKeyboardManager(isDockerDesktopActive, isWatchConfigured, startWatch boo
 }
 
 func (lk *LogKeyboard) PrintKeyboardInfo(print func()) {
+	if !lk.shouldPrintInfo {
+		return
+	}
 	fmt.Print("\033[?25l")        // hide cursor
 	defer fmt.Printf("\033[?25h") // show cursor
 
@@ -132,6 +136,9 @@ func (lk *LogKeyboard) clearInfo() {
 }
 
 func (lk *LogKeyboard) PrintEnter() {
+	if !lk.shouldPrintInfo {
+		return
+	}
 	lk.clearInfo()
 	lk.printInfo()
 }
@@ -218,6 +225,7 @@ func (lk *LogKeyboard) HandleKeyEvents(event keyboard.KeyEvent, ctx context.Cont
 	case keyboard.KeyCtrlC:
 		keyboard.Close()
 		lk.clearInfo()
+		lk.shouldPrintInfo = false
 		if lk.Watch.Watching && lk.Watch.Cancel != nil {
 			// fmt.Println("canceling")
 			lk.Watch.Cancel()
@@ -226,8 +234,8 @@ func (lk *LogKeyboard) HandleKeyEvents(event keyboard.KeyEvent, ctx context.Cont
 			fmt.Println("done@", err)
 		}
 		// will notify main thread to kill and will handle gracefully
-		// fmt.Println("tear down")
-		signal.Notify(lk.SignalChannel, syscall.SIGTERM)
+		fmt.Println("tear down")
+		lk.SignalChannel <- syscall.SIGINT
 	case keyboard.KeyEnter:
 		lk.PrintEnter()
 	}
