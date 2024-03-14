@@ -95,21 +95,23 @@ func (s *composeService) Up(ctx context.Context, project *types.Project, options
 			if err != nil {
 				panic(err)
 			}
-			formatter.NewKeyboardManager(true, s.shouldWatch(project), options.Start.Watch, s.Watch, printer.Cancel, func() {
-				eg.Go(func() error {
-					_, err := printer.Run(options.Start.CascadeStop, options.Start.ExitCodeFrom, func() error {
-						fmt.Fprintln(s.stdinfo(), "Aborting on container exit...")
-						return progress.Run(ctx, func(ctx context.Context) error {
-							return s.Stop(ctx, project.Name, api.StopOptions{
-								Services: options.Create.Services,
-								Project:  project,
-							})
-						}, s.stdinfo())
-					})
-					return err
-				})
-			}, signalChan) // change after test
-			if formatter.KeyboardManager.Watch.Watching {
+			formatter.NewKeyboardManager(true, options.Start.Watch, signalChan, s.Watch)
+
+			// formatter.NewKeyboardManager(true, s.shouldWatch(project), options.Start.Watch, s.Watch, printer.Cancel, func() {
+			// 	eg.Go(func() error {
+			// 		_, err := printer.Run(options.Start.CascadeStop, options.Start.ExitCodeFrom, func() error {
+			// 			fmt.Fprintln(s.stdinfo(), "Aborting on container exit...")
+			// 			return progress.Run(ctx, func(ctx context.Context) error {
+			// 				return s.Stop(ctx, project.Name, api.StopOptions{
+			// 					Services: options.Create.Services,
+			// 					Project:  project,
+			// 				})
+			// 			}, s.stdinfo())
+			// 		})
+			// 		return err
+			// 	})
+			// }, signalChan) // change after test
+			if options.Start.Watch {
 				formatter.KeyboardManager.StartWatch(ctx, project, options)
 			}
 			// formatter.NewKeyboardManager(s.isDesktopIntegrationActive(), s.shouldWatch(project), options.Start.Watch, s.Watch)

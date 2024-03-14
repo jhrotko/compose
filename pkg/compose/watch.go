@@ -178,7 +178,7 @@ func (s *composeService) Watch(ctx context.Context, project *types.Project, serv
 		// options.LogTo.Err(api.WatchLogger, "FAILED")
 		return fmt.Errorf("none of the selected services is configured for watch, consider setting an 'develop' section")
 	}
-	options.LogTo.Log(api.WatchLogger, "watch enabled")
+	options.LogTo.Log(api.WatchLogger, "Watch started")
 
 	return eg.Wait()
 }
@@ -198,10 +198,12 @@ func (s *composeService) watch(ctx context.Context, project *types.Project, name
 
 	events := make(chan fileEvent)
 	batchEvents := batchDebounceEvents(ctx, s.clock, quietPeriod, events)
+	quit := make(chan bool)
 	go func() {
 		for {
 			select {
 			case <-ctx.Done():
+				quit <- true
 				return
 			case batch := <-batchEvents:
 				start := time.Now()
@@ -217,9 +219,11 @@ func (s *composeService) watch(ctx context.Context, project *types.Project, name
 
 	for {
 		select {
-		case <-ctx.Done():
+		case <-quit:
+			options.LogTo.Log(api.WatchLogger, "Watch stoped")
 			return nil
 		case err := <-watcher.Errors():
+			options.LogTo.Err(api.WatchLogger, "Watch stoped with errors")
 			return err
 		case event := <-watcher.Events():
 			hostPath := event.Path()
