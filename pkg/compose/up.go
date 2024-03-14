@@ -108,7 +108,7 @@ func (s *composeService) Up(ctx context.Context, project *types.Project, options
 					})
 					return err
 				})
-			}) // change after test
+			}, signalChan) // change after test
 			if formatter.KeyboardManager.Watch.Watching {
 				formatter.KeyboardManager.StartWatch(ctx, project, options)
 			}
@@ -136,7 +136,7 @@ func (s *composeService) Up(ctx context.Context, project *types.Project, options
 					return nil
 				}
 			case event := <-kEvents:
-				formatter.KeyboardManager.HandleKeyEvents(event, ctx, project, options, gracefulTeardown)
+				formatter.KeyboardManager.HandleKeyEvents(event, ctx, project, options)
 			}
 		}
 	})

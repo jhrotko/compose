@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/buger/goterm"
@@ -12,6 +14,7 @@ import (
 	"github.com/docker/compose/v2/pkg/api"
 	"github.com/docker/compose/v2/pkg/watch"
 	"github.com/eiannone/keyboard"
+	"github.com/hashicorp/go-multierror"
 	"github.com/skratchdot/open-golang/open"
 )
 
@@ -29,6 +32,7 @@ type KeyboardWatch struct {
 	Cancel   context.CancelFunc
 }
 type LogKeyboard struct {
+	SignalChannel         chan<- os.Signal
 	ErrorHandle           KeyboardError
 	Watch                 KeyboardWatch
 	started               bool
@@ -39,10 +43,10 @@ type LogKeyboard struct {
 }
 
 var KeyboardManager *LogKeyboard
-
+var eg multierror.Group
 var errorColor = "\x1b[1;33m"
 
-func NewKeyboardManager(isDockerDesktopActive, isWatchConfigured, startWatch bool, watchFn func(ctx context.Context, project *types.Project, services []string, options api.WatchOptions) error, stop func(), start func()) {
+func NewKeyboardManager(isDockerDesktopActive, isWatchConfigured, startWatch bool, watchFn func(ctx context.Context, project *types.Project, services []string, options api.WatchOptions) error, stop func(), start func(), sc chan<- os.Signal) {
 	km := LogKeyboard{}
 	km.IsDockerDesktopActive = isDockerDesktopActive
 	km.IsWatchConfigured = isWatchConfigured
@@ -51,6 +55,7 @@ func NewKeyboardManager(isDockerDesktopActive, isWatchConfigured, startWatch boo
 	// if up --watch and there is a watch config, we should start with watch running
 	km.Watch.Watching = isWatchConfigured && startWatch
 	km.Watch.WatchFn = watchFn
+	km.SignalChannel = sc
 	KeyboardManager = &km
 }
 
@@ -168,17 +173,16 @@ func (lk *LogKeyboard) StartWatch(ctx context.Context, project *types.Project, o
 		lk.Watch.Cancel()
 	} else {
 		lk.newContext(ctx)
-		errW := make(chan error)
-		go func() {
+		eg.Go(func() error {
 			buildOpts := *options.Create.Build
 			buildOpts.Quiet = true
 			err := lk.Watch.WatchFn(lk.Watch.Ctx, project, options.Start.Services, api.WatchOptions{
 				Build: &buildOpts,
 				LogTo: options.Start.Attach,
 			})
-			errW <- err
-		}()
-		lk.Error("Watch", <-errW)
+			// fmt.Println("sent error")
+			return err
+		})
 	}
 }
 
@@ -201,7 +205,7 @@ func (lk *LogKeyboard) debug() {
 	}
 }
 
-func (lk *LogKeyboard) HandleKeyEvents(event keyboard.KeyEvent, ctx context.Context, project *types.Project, options api.UpOptions, handleTearDown func()) {
+func (lk *LogKeyboard) HandleKeyEvents(event keyboard.KeyEvent, ctx context.Context, project *types.Project, options api.UpOptions) {
 	switch kRune := event.Rune; kRune {
 	case 'V':
 		lk.openDockerDesktop(project)
@@ -213,11 +217,17 @@ func (lk *LogKeyboard) HandleKeyEvents(event keyboard.KeyEvent, ctx context.Cont
 	switch key := event.Key; key {
 	case keyboard.KeyCtrlC:
 		keyboard.Close()
-		if lk.Watch.Watching && lk.Watch.Cancel != nil {
-			lk.Watch.Cancel()
-		}
 		lk.clearInfo()
-		handleTearDown()
+		if lk.Watch.Watching && lk.Watch.Cancel != nil {
+			// fmt.Println("canceling")
+			lk.Watch.Cancel()
+			// fmt.Println("canceling watch?")
+			err := eg.Wait().ErrorOrNil() // Need to print this ?
+			fmt.Println("done@", err)
+		}
+		// will notify main thread to kill and will handle gracefully
+		// fmt.Println("tear down")
+		signal.Notify(lk.SignalChannel, syscall.SIGTERM)
 	case keyboard.KeyEnter:
 		lk.PrintEnter()
 	}
