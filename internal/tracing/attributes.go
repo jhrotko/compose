@@ -42,6 +42,13 @@ type Metrics struct {
 	CountIncludesRemote int
 }
 
+type KeyboardMetrics struct {
+	EnabledViewDockerDesktop  bool
+	HasWatchConfig            bool
+	ActivateViewDockerDesktop bool
+	ActivateWatch             bool
+}
+
 func (s SpanOptions) SpanStartOptions() []trace.SpanStartOption {
 	out := make([]trace.SpanStartOption, len(s))
 	for i := range s {
@@ -130,6 +137,18 @@ func ServiceOptions(service types.ServiceConfig) SpanOptions {
 	}
 	attrs = append(attrs, attribute.StringSlice("service.volumes", volNames))
 
+	return []trace.SpanStartEventOption{
+		trace.WithAttributes(attrs...),
+	}
+}
+
+func KeyboardOptions(metrics KeyboardMetrics) SpanOptions {
+	attrs := []attribute.KeyValue{
+		attribute.Bool("view.enabled", metrics.EnabledViewDockerDesktop),
+		attribute.Bool("view.activated", metrics.ActivateViewDockerDesktop),
+		attribute.Bool("watch.activated", metrics.ActivateWatch),
+		attribute.Bool("watch.config", metrics.HasWatchConfig),
+	}
 	return []trace.SpanStartEventOption{
 		trace.WithAttributes(attrs...),
 	}

@@ -9,6 +9,7 @@ import (
 
 	"github.com/buger/goterm"
 	"github.com/compose-spec/compose-go/v2/types"
+	"github.com/docker/compose/v2/internal/tracing"
 	"github.com/docker/compose/v2/pkg/api"
 	"github.com/docker/compose/v2/pkg/watch"
 	"github.com/eiannone/keyboard"
@@ -48,6 +49,7 @@ type LogKeyboard struct {
 	// services              []string
 	// printerStop  func()
 	// printerStart func()
+	metrics tracing.KeyboardMetrics
 }
 
 var KeyboardManager *LogKeyboard
@@ -66,6 +68,10 @@ func NewKeyboardManager(isDockerDesktopActive, isWatchConfigured bool, sc chan<-
 	km.Watch.Watching = false
 	km.Watch.WatchFn = watchFn
 	km.SignalChannel = sc
+	km.metrics = tracing.KeyboardMetrics{
+		EnabledViewDockerDesktop: isDockerDesktopActive,
+		HasWatchConfig:           isWatchConfigured,
+	}
 	KeyboardManager = &km
 }
 
@@ -180,6 +186,7 @@ func (lk *LogKeyboard) openDockerDesktop(project *types.Project) {
 	if !lk.IsDockerDesktopActive {
 		return
 	}
+	lk.metrics.ActivateViewDockerDesktop = true
 	link := fmt.Sprintf("docker-desktop://dashboard/apps/%s", project.Name)
 	err := open.Run(link)
 	if err != nil {
@@ -291,6 +298,7 @@ func (lk *LogKeyboard) HandleKeyEvents(event keyboard.KeyEvent, ctx context.Cont
 	case 'V':
 		lk.openDockerDesktop(project)
 	case 'W':
+		lk.metrics.ActivateWatch = true
 		lk.StartWatch(ctx, project, options)
 		// case 'D':
 		// 	lk.debug(project)
@@ -304,6 +312,13 @@ func (lk *LogKeyboard) HandleKeyEvents(event keyboard.KeyEvent, ctx context.Cont
 			lk.Watch.Cancel()
 			_ = eg.Wait().ErrorOrNil() // Need to print this ?
 		}
+		go func() {
+			tracing.SpanWrapFunc("nav_menu", tracing.KeyboardOptions(lk.metrics),
+				func(ctx context.Context) error {
+					return nil
+				})(ctx)
+		}()
+
 		// will notify main thread to kill and will handle gracefully
 		lk.SignalChannel <- syscall.SIGINT
 	case keyboard.KeyEnter:
