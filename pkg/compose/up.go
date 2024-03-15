@@ -95,7 +95,7 @@ func (s *composeService) Up(ctx context.Context, project *types.Project, options
 			if err != nil {
 				panic(err)
 			}
-			formatter.NewKeyboardManager(true, options.Start.Watch, signalChan, s.Watch)
+			formatter.NewKeyboardManager(s.isDesktopIntegrationActive(), s.shouldWatch(project), signalChan, s.Watch)
 
 			// formatter.NewKeyboardManager(true, s.shouldWatch(project), options.Start.Watch, s.Watch, printer.Cancel, func() {
 			// 	eg.Go(func() error {

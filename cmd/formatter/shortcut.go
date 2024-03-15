@@ -139,8 +139,9 @@ func (lk *LogKeyboard) infoMessage() {
 		watchInfo = navColor(", ")
 	}
 	watchInfo = watchInfo + navColor("Enable ") + keyColor("^W") + navColor("atch Mode")
-	debugOptions := navColor(", ") + keyColor("^D") + navColor("ebug")
-	options = options + openDDInfo + watchInfo + debugOptions
+	// debugOptions := navColor(", ") + keyColor("^D") + navColor("ebug")
+	// options = options + openDDInfo + watchInfo + debugOptions
+	options = options + openDDInfo + watchInfo
 
 	fmt.Print("\033[K" + options)
 }
@@ -157,9 +158,9 @@ func (lk *LogKeyboard) clearInfo() {
 		fmt.Print("\033[2K")             // clear line
 		fmt.Print("\0338")               // restore cursor position
 	}
-	if lk.logLevel == DEBUG {
+	// if lk.logLevel == DEBUG {
 
-	}
+	// }
 }
 
 func (lk *LogKeyboard) PrintEnter() {
@@ -201,7 +202,6 @@ func (lk *LogKeyboard) StartWatch(ctx context.Context, project *types.Project, o
 		return
 	}
 	lk.switchWatching()
-	fmt.Println("lk.isWatching()", lk.isWatching())
 	if !lk.isWatching() && lk.Watch.Cancel != nil {
 		lk.Watch.Cancel()
 	} else {
@@ -313,7 +313,7 @@ func (lk *LogKeyboard) HandleKeyEvents(event keyboard.KeyEvent, ctx context.Cont
 			_ = eg.Wait().ErrorOrNil() // Need to print this ?
 		}
 		go func() {
-			tracing.SpanWrapFunc("nav_menu", tracing.KeyboardOptions(lk.metrics),
+			tracing.SpanWrapFunc("navigation_menu", tracing.KeyboardOptions(lk.metrics),
 				func(ctx context.Context) error {
 					return nil
 				})(ctx)
