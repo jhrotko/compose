@@ -56,7 +56,7 @@ type upOptions struct {
 	wait               bool
 	waitTimeout        int
 	watch              bool
-	navigationBar      bool
+	navigationMenu     bool
 }
 
 func (opts upOptions) apply(project *types.Project, services []string) (*types.Project, error) {
@@ -129,7 +129,11 @@ func upCommand(p *ProjectOptions, dockerCli command.Cli, backend api.Service, ex
 	flags.BoolVar(&up.wait, "wait", false, "Wait for services to be running|healthy. Implies detached mode.")
 	flags.IntVar(&up.waitTimeout, "wait-timeout", 0, "Maximum duration to wait for the project to be running|healthy")
 	flags.BoolVarP(&up.watch, "watch", "w", false, "Watch source code and rebuild/refresh containers when files are updated.")
-	flags.BoolVar(&up.navigationBar, "navigation-menu", true, "While running in attach mode, enable shortcuts and shortcuts info bar.")
+	composeMenu := true
+	if os.Getenv(ComposeMenu) != "" {
+		composeMenu = utils.StringToBool(os.Getenv(ComposeMenu))
+	}
+	flags.BoolVar(&up.navigationMenu, "navigation-menu", composeMenu, "While running in attach mode, enable shortcuts and shortcuts info bar.")
 
 	return upCmd
 }
@@ -264,7 +268,7 @@ func runUp(
 			WaitTimeout:   timeout,
 			Watch:         upOptions.watch,
 			Services:      services,
-			NavigationBar: upOptions.navigationBar,
+			NavigationBar: upOptions.navigationMenu,
 		},
 	})
 }
