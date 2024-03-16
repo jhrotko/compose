@@ -139,7 +139,7 @@ func (lk *LogKeyboard) PrintKeyboardInfo(print func()) {
 	print()
 
 	if lk.logLevel == INFO {
-		lk.createBuffer(1)
+		lk.createBuffer(0)
 		lk.printNavigationMenu()
 	}
 }
@@ -148,18 +148,16 @@ func (lk *LogKeyboard) PrintKeyboardInfo(print func()) {
 func (lk *LogKeyboard) createBuffer(lines int) {
 	allocateSpace(lines)
 
-	if lk.kError.shoudlDisplay() && isOverflow(lk.kError.error()) {
+	if lk.kError.shoudlDisplay() {
 		extraLines := linesOffset(lk.kError.error()) + 1
 		allocateSpace(extraLines)
 		lines = lines + extraLines
 	}
 
 	infoMessage := lk.navigationMenu()
-	if isOverflow(infoMessage) {
-		extraLines := linesOffset(infoMessage) + 1
-		allocateSpace(extraLines)
-		lines = lines + extraLines
-	}
+	extraLines := linesOffset(infoMessage) + 1
+	allocateSpace(extraLines)
+	lines = lines + extraLines
 
 	if lines > 0 {
 		MoveCursorUp(lines)
@@ -272,7 +270,10 @@ func (lk *LogKeyboard) HandleKeyEvents(event keyboard.KeyEvent, ctx context.Cont
 	switch key := event.Key; key {
 	case keyboard.KeyCtrlC:
 		keyboard.Close()
+
 		lk.clearNavigationMenu()
+		ShowCursor()
+
 		lk.logLevel = NONE
 		if lk.Watch.Watching && lk.Watch.Cancel != nil {
 			lk.Watch.Cancel()
@@ -285,7 +286,6 @@ func (lk *LogKeyboard) HandleKeyEvents(event keyboard.KeyEvent, ctx context.Cont
 					return nil
 				})(ctx)
 		}()
-		ShowCursor()
 		// will notify main thread to kill and will handle gracefully
 		lk.signalChannel <- syscall.SIGINT
 	case keyboard.KeyEnter:
@@ -301,10 +301,6 @@ func allocateSpace(lines int) {
 		NewLine()
 		MoveCursorX(0)
 	}
-}
-
-func isOverflow(s string) bool {
-	return lenAnsi(s) > goterm.Width()
 }
 
 func linesOffset(s string) int {
