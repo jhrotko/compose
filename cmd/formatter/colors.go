@@ -73,10 +73,11 @@ var monochrome = func(s string) string {
 }
 
 func ansiColor(code, s string) string {
-	return fmt.Sprintf("%s%s%s", ansi(code), s, ansi("0"))
+	return fmt.Sprintf("%s%s%s", ansiColorCode(code), s, ansiColorCode("0"))
 }
 
-func ansi(code string) string {
+// Everything about ansiColorCode color https://hyperskill.org/learn/step/18193
+func ansiColorCode(code string) string {
 	return fmt.Sprintf("\033[%sm", code)
 }
 
