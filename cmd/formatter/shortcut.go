@@ -58,7 +58,6 @@ var eg multierror.Group
 var errorColor = "\x1b[1;33m"
 
 func NewKeyboardManager(isDockerDesktopActive, isWatchConfigured bool, sc chan<- os.Signal, watchFn func(ctx context.Context, project *types.Project, services []string, options api.WatchOptions) error) {
-	// func NewKeyboardManager(isDockerDesktopActive, isWatchConfigured, startWatch bool, watchFn func(ctx context.Context, project *types.Project, services []string, options api.WatchOptions) error, stop func(), start func(), sc chan<- os.Signal) {
 	km := LogKeyboard{}
 	km.IsDockerDesktopActive = isDockerDesktopActive
 	km.IsWatchConfigured = isWatchConfigured
@@ -84,7 +83,7 @@ func (lk *LogKeyboard) PrintKeyboardInfo(print func()) {
 
 	switch lk.logLevel {
 	case INFO:
-		lk.createBuffer(2)
+		lk.createBuffer(0)
 		lk.printInfo()
 	case DEBUG:
 		lk.createBuffer(3)
@@ -98,29 +97,26 @@ func (lk *LogKeyboard) Error(prefix string, err error) {
 	lk.ErrorHandle.err = fmt.Errorf("[%s]  %s", prefix, err.Error())
 }
 
-// This avoids incorrect printing at the end of the terminal
-func (lk *LogKeyboard) createBuffer(lines int) {
+func allocateSpace(lines int) {
 	for i := 0; i < lines; i++ {
 		fmt.Print("\033[2K")
 		fmt.Print("\012") // new line
 		fmt.Print("\033[0G")
 	}
+}
+
+// This avoids incorrect printing at the end of the terminal
+func (lk *LogKeyboard) createBuffer(lines int) {
+	allocateSpace(lines)
 	if lk.ErrorHandle.shoudlDisplay() && isOverflow(lk.ErrorHandle.err.Error()) {
-		extraLines := offset(lk.ErrorHandle.err.Error()) + 1
-		for i := 0; i < extraLines; i++ {
-			fmt.Print("\033[2K")
-			fmt.Print("\012") // new line
-			fmt.Print("\033[0G")
-		}
+		extraLines := linesOffset(lk.ErrorHandle.err.Error()) + 1
+		allocateSpace(extraLines)
 		lines = lines + extraLines
 	}
-	if isOverflow(lk.infoMessage()) {
-		extraLines := offset(lk.ErrorHandle.err.Error()) + 1
-		for i := 0; i < extraLines; i++ {
-			fmt.Print("\033[2K")
-			fmt.Print("\012") // new line
-			fmt.Print("\033[0G")
-		}
+	infoMessage := lk.infoMessage()
+	if isOverflow(infoMessage) {
+		extraLines := linesOffset(infoMessage) + 1
+		allocateSpace(extraLines)
 		lines = lines + extraLines
 	}
 	if lines > 0 {
@@ -136,14 +132,14 @@ func isOverflow(s string) bool {
 	return len(stripansi.Strip(s)) > goterm.Width()
 }
 
-func offset(s string) int {
+func linesOffset(s string) int {
 	return int(math.Floor(float64(len(stripansi.Strip(s))) / float64(goterm.Width())))
 }
 
 func (lk *LogKeyboard) printError(height int, info string) {
 	if lk.ErrorHandle.shoudlDisplay() {
 		errMessage := lk.ErrorHandle.err.Error()
-		fmt.Printf("\033[%d;0H\033[2K", height-offset(info)-offset(errMessage)-1) // Move to before last line
+		fmt.Printf("\033[%d;0H\033[2K", height-linesOffset(info)-linesOffset(errMessage)-1) // Move to before last line
 		fmt.Printf(errorColor + errMessage + "\033[0m")
 	}
 }
@@ -157,25 +153,39 @@ func (lk *LogKeyboard) printInfo() {
 		info := lk.infoMessage()
 		lk.printError(height, info)
 
-		fmt.Printf("\033[%d;0H\033[2K", height-offset(info)) // Move to last line
+		fmt.Printf("\033[%d;0H\033[2K", height-linesOffset(info)) // Move to last line
 		fmt.Print(info + "\033[0m")
 
 		fmt.Print("\033[0G") // reset column position
 		fmt.Print("\0338")
 	}
 }
+
+func shortcutKeyColor(key string) string {
+	foreground := "38;2;"
+	black := "0;0;0"
+	background := "48;2;"
+	white := "255;255;255"
+	bold := ";1"
+	reset := "\033[0m"
+	return "\033[" + foreground + black + ";" + background + white + bold + "m" + key + reset
+}
+
 func (lk *LogKeyboard) infoMessage() string {
-	options := navColor("Options:  ")
+	var options string
 	var openDDInfo string
 	if lk.IsDockerDesktopActive {
-		openDDInfo = keyColor("V") + navColor("iew containers in Docker Desktop")
+		openDDInfo = shortcutKeyColor("V") + navColor(" View in Docker Desktop")
 	}
 	var watchInfo string
 	if openDDInfo != "" {
 		watchInfo = navColor("   ")
 	}
-	watchInfo = watchInfo + navColor("Enable ") + "W" + navColor("atch Mode")
-	// debugOptions := navColor(", ") + keyColor("^D") + navColor("ebug")
+	var isEnabled = " Enable"
+	if lk.Watch.Watching {
+		isEnabled = " Disable"
+	}
+	watchInfo = watchInfo + shortcutKeyColor("V") + navColor(isEnabled+" Watch")
 	return options + openDDInfo + watchInfo
 }
 
