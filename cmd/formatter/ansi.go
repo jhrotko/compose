@@ -47,11 +47,11 @@ func ClearLine() {
 	// Does not move cursor from its current position
 	fmt.Print(ansi("[2K"))
 }
-func MoveUp(lines int) {
+func MoveCursorUp(lines int) {
 	// Does not add new lines
 	fmt.Print(ansi(fmt.Sprintf("[%dA", lines)))
 }
-func MoveDown(lines int) {
+func MoveCursorDown(lines int) {
 	// Does not add new lines
 	fmt.Print(ansi(fmt.Sprintf("[%dB", lines)))
 }
