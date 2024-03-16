@@ -133,7 +133,7 @@ func upCommand(p *ProjectOptions, dockerCli command.Cli, backend api.Service, ex
 	if os.Getenv(ComposeMenu) != "" {
 		composeMenu = utils.StringToBool(os.Getenv(ComposeMenu))
 	}
-	flags.BoolVar(&up.navigationMenu, "navigation-menu", composeMenu, "While running in attach mode, enable shortcuts and shortcuts info bar.")
+	flags.BoolVar(&up.navigationMenu, "navigation-menu", composeMenu, "While running in attach mode, enable helpful shortcuts.")
 
 	return upCmd
 }
