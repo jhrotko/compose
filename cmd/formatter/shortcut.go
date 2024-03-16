@@ -3,10 +3,12 @@ package formatter
 import (
 	"context"
 	"fmt"
+	"math"
 	"os"
 	"syscall"
 	"time"
 
+	"github.com/acarl005/stripansi"
 	"github.com/buger/goterm"
 	"github.com/compose-spec/compose-go/v2/types"
 	"github.com/docker/compose/v2/internal/tracing"
@@ -41,7 +43,6 @@ const (
 type LogKeyboard struct {
 	ErrorHandle           KeyboardError
 	Watch                 KeyboardWatch
-	started               bool
 	IsDockerDesktopActive bool
 	IsWatchConfigured     bool
 	logLevel              KEYBOARD_LOG_LEVEL
@@ -64,7 +65,6 @@ func NewKeyboardManager(isDockerDesktopActive, isWatchConfigured bool, sc chan<-
 	// km.printerStart = start
 	// km.printerStop = stop
 	km.logLevel = INFO
-	// if up --watch and there is a watch config, we should start with watch running
 	km.Watch.Watching = false
 	km.Watch.WatchFn = watchFn
 	km.SignalChannel = sc
@@ -79,12 +79,9 @@ func (lk *LogKeyboard) PrintKeyboardInfo(print func()) {
 	fmt.Print("\033[?25l")        // hide cursor
 	defer fmt.Printf("\033[?25h") // show cursor
 
-	if lk.started {
-		lk.clearInfo()
-	} else {
-		lk.started = true
-	}
+	lk.clearInfo()
 	print()
+
 	switch lk.logLevel {
 	case INFO:
 		lk.createBuffer(2)
@@ -93,6 +90,7 @@ func (lk *LogKeyboard) PrintKeyboardInfo(print func()) {
 		lk.createBuffer(3)
 		// lk.printDebugOptions()
 	}
+
 }
 
 func (lk *LogKeyboard) Error(prefix string, err error) {
@@ -103,64 +101,93 @@ func (lk *LogKeyboard) Error(prefix string, err error) {
 // This avoids incorrect printing at the end of the terminal
 func (lk *LogKeyboard) createBuffer(lines int) {
 	for i := 0; i < lines; i++ {
-		fmt.Print("\033[K") // clear
-		fmt.Print("\012")   // new line
+		fmt.Print("\033[2K")
+		fmt.Print("\012") // new line
+		fmt.Print("\033[0G")
 	}
-	fmt.Printf("\033[%dA", lines) // go back x lines
+	if lk.ErrorHandle.shoudlDisplay() && isOverflow(lk.ErrorHandle.err.Error()) {
+		extraLines := offset(lk.ErrorHandle.err.Error()) + 1
+		for i := 0; i < extraLines; i++ {
+			fmt.Print("\033[2K")
+			fmt.Print("\012") // new line
+			fmt.Print("\033[0G")
+		}
+		lines = lines + extraLines
+	}
+	if isOverflow(lk.infoMessage()) {
+		extraLines := offset(lk.ErrorHandle.err.Error()) + 1
+		for i := 0; i < extraLines; i++ {
+			fmt.Print("\033[2K")
+			fmt.Print("\012") // new line
+			fmt.Print("\033[0G")
+		}
+		lines = lines + extraLines
+	}
+	if lines > 0 {
+		fmt.Printf("\033[%dA", lines) // go back x lines
+	}
 }
 
-func (lk *LogKeyboard) printError(height int) {
-	if lk.ErrorHandle.err != nil && int(time.Since(lk.ErrorHandle.errStart).Seconds()) < DISPLAY_ERROR_TIME {
-		fmt.Printf("\033[%d;0H", height-1) // Move to before last line
-		fmt.Printf("\033[K" + errorColor + lk.ErrorHandle.err.Error())
+func (ke *KeyboardError) shoudlDisplay() bool {
+	return ke.err != nil && int(time.Since(ke.errStart).Seconds()) < DISPLAY_ERROR_TIME
+}
+
+func isOverflow(s string) bool {
+	return len(stripansi.Strip(s)) > goterm.Width()
+}
+
+func offset(s string) int {
+	return int(math.Floor(float64(len(stripansi.Strip(s))) / float64(goterm.Width())))
+}
+
+func (lk *LogKeyboard) printError(height int, info string) {
+	if lk.ErrorHandle.shoudlDisplay() {
+		errMessage := lk.ErrorHandle.err.Error()
+		fmt.Printf("\033[%d;0H\033[2K", height-offset(info)-offset(errMessage)-1) // Move to before last line
+		fmt.Printf(errorColor + errMessage + "\033[0m")
 	}
 }
 
 func (lk *LogKeyboard) printInfo() {
 	if lk.logLevel == INFO {
 		height := goterm.Height()
-		fmt.Print("\0337") // save cursor position
-		lk.printError(height)
-		fmt.Printf("\033[%d;0H", height) // Move to last line
-		// clear line
-		lk.infoMessage()
-		fmt.Print("\0338") // restore cursor position
+		fmt.Print("\033[0G") // reset column position
+		fmt.Print("\0337")   // save cursor position
+
+		info := lk.infoMessage()
+		lk.printError(height, info)
+
+		fmt.Printf("\033[%d;0H\033[2K", height-offset(info)) // Move to last line
+		fmt.Print(info + "\033[0m")
+
+		fmt.Print("\033[0G") // reset column position
+		fmt.Print("\0338")
 	}
 }
-
-func (lk *LogKeyboard) infoMessage() {
-	options := navColor("  Options:  ")
+func (lk *LogKeyboard) infoMessage() string {
+	options := navColor("Options:  ")
 	var openDDInfo string
 	if lk.IsDockerDesktopActive {
-		openDDInfo = keyColor("^V") + navColor("iew containers in Docker Desktop")
+		openDDInfo = keyColor("V") + navColor("iew containers in Docker Desktop")
 	}
 	var watchInfo string
 	if openDDInfo != "" {
-		watchInfo = navColor(", ")
+		watchInfo = navColor("   ")
 	}
-	watchInfo = watchInfo + navColor("Enable ") + keyColor("^W") + navColor("atch Mode")
+	watchInfo = watchInfo + navColor("Enable ") + "W" + navColor("atch Mode")
 	// debugOptions := navColor(", ") + keyColor("^D") + navColor("ebug")
-	// options = options + openDDInfo + watchInfo + debugOptions
-	options = options + openDDInfo + watchInfo
-
-	fmt.Print("\033[K" + options)
+	return options + openDDInfo + watchInfo
 }
 
 func (lk *LogKeyboard) clearInfo() {
-	if lk.logLevel == INFO {
-		height := goterm.Height()
-		fmt.Print("\0337") // save cursor position
-		if lk.ErrorHandle.err != nil {
-			fmt.Printf("\033[%d;0H", height-1)
-			fmt.Print("\033[2K") // clear line
-		}
-		fmt.Printf("\033[%d;0H", height) // Move to last line
-		fmt.Print("\033[2K")             // clear line
-		fmt.Print("\0338")               // restore cursor position
+	height := goterm.Height()
+	fmt.Print("\033[0G")
+	fmt.Print("\0337") // clear from current cursor position
+	for i := 0; i < height; i++ {
+		fmt.Print("\033[1B\033[2K") //does not add new lines, so its ok
 	}
-	// if lk.logLevel == DEBUG {
-
-	// }
+	fmt.Print("\0338")
+	// fmt.Println("\033[0J")
 }
 
 func (lk *LogKeyboard) PrintEnter() {
@@ -323,5 +350,11 @@ func (lk *LogKeyboard) HandleKeyEvents(event keyboard.KeyEvent, ctx context.Cont
 		lk.SignalChannel <- syscall.SIGINT
 	case keyboard.KeyEnter:
 		lk.PrintEnter()
+	case keyboard.KeyCtrlL:
+		height := goterm.Height()
+		for i := 0; i < height; i++ {
+			fmt.Println()
+			fmt.Print("\033[2K")
+		}
 	}
 }

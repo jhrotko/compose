@@ -5,6 +5,7 @@ go 1.21
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
 	github.com/Microsoft/go-winio v0.6.1
+	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d
 	github.com/buger/goterm v1.0.4
 	github.com/compose-spec/compose-go/v2 v2.0.0
 	github.com/containerd/console v1.0.3
@@ -33,6 +34,7 @@ require (
 	github.com/opencontainers/image-spec v1.1.0-rc6
 	github.com/otiai10/copy v1.14.0
 	github.com/sirupsen/logrus v1.9.3
+	github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.4
@@ -53,8 +55,6 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 	gotest.tools/v3 v3.5.1
 )
-
-require github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966 // indirect
 
 require (
 	dario.cat/mergo v1.0.0 // indirect
