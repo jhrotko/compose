@@ -273,9 +273,9 @@ func (lk *LogKeyboard) KeyboardClose() {
 
 func (lk *LogKeyboard) HandleKeyEvents(event keyboard.KeyEvent, ctx context.Context, project *types.Project, options api.UpOptions) {
 	switch kRune := event.Rune; kRune {
-	case 'V':
+	case 'v':
 		lk.openDockerDesktop(project)
-	case 'W':
+	case 'w':
 		lk.metrics.ActivateWatch = true
 		lk.StartWatch(ctx, project, options)
 	}
