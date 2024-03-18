@@ -108,7 +108,7 @@ options:
       experimentalcli: false
       kubernetes: false
       swarm: false
-    - option: navigation-menu
+    - option: menu
       value_type: bool
       default_value: "false"
       description: While running in attach mode, enable helpful shortcuts.

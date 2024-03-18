@@ -16,7 +16,7 @@ Create and start containers
 | `--dry-run`                  |               |          | Execute command in dry run mode                                                                         |
 | `--exit-code-from`           | `string`      |          | Return the exit code of the selected service container. Implies --abort-on-container-exit               |
 | `--force-recreate`           |               |          | Recreate containers even if their configuration and image haven't changed                               |
-| `--navigation-menu`          |               |          | While running in attach mode, enable helpful shortcuts.                                                 |
+| `--menu`                     |               |          | While running in attach mode, enable helpful shortcuts.                                                 |
 | `--no-attach`                | `stringArray` |          | Do not attach (stream logs) to the specified services                                                   |
 | `--no-build`                 |               |          | Don't build an image, even if it's policy                                                               |
 | `--no-color`                 |               |          | Produce monochrome output                                                                               |
