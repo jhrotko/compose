@@ -99,7 +99,7 @@ func (s *composeService) Up(ctx context.Context, project *types.Project, options
 			if options.Start.Watch {
 				formatter.KeyboardManager.StartWatch(ctx, project, options)
 			}
-			defer keyboard.Close()
+			defer formatter.KeyboardManager.KeyboardClose()
 		}
 		for {
 			select {

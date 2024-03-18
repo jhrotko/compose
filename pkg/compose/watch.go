@@ -175,7 +175,6 @@ func (s *composeService) Watch(ctx context.Context, project *types.Project, serv
 		})
 	}
 	if !watching {
-		// options.LogTo.Err(api.WatchLogger, "FAILED")
 		return fmt.Errorf("none of the selected services is configured for watch, consider setting an 'develop' section")
 	}
 	options.LogTo.Log(api.WatchLogger, "Watch started")

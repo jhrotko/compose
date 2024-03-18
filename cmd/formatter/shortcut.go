@@ -18,6 +18,7 @@ package formatter
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -62,7 +63,7 @@ func (ke *KeyboardError) addError(prefix string, err error) {
 	prefix = ansiColor("1;36", fmt.Sprintf("%s →", prefix))
 	errorString := fmt.Sprintf("%s  %s", prefix, err.Error())
 
-	ke.err = fmt.Errorf(errorString)
+	ke.err = errors.New(errorString)
 }
 
 func (ke *KeyboardError) error() string {
@@ -113,7 +114,14 @@ type LogKeyboard struct {
 var KeyboardManager *LogKeyboard
 var eg multierror.Group
 
-func NewKeyboardManager(isDockerDesktopActive, isWatchConfigured bool, sc chan<- os.Signal, watchFn func(ctx context.Context, project *types.Project, services []string, options api.WatchOptions) error) {
+func NewKeyboardManager(isDockerDesktopActive, isWatchConfigured bool,
+	sc chan<- os.Signal,
+	watchFn func(ctx context.Context,
+		project *types.Project,
+		services []string,
+		options api.WatchOptions,
+	) error,
+) {
 	km := LogKeyboard{}
 	km.IsDockerDesktopActive = isDockerDesktopActive
 	km.IsWatchConfigured = isWatchConfigured
@@ -134,9 +142,9 @@ func NewKeyboardManager(isDockerDesktopActive, isWatchConfigured bool, sc chan<-
 	HideCursor()
 }
 
-func (lk *LogKeyboard) PrintKeyboardInfo(print func()) {
+func (lk *LogKeyboard) PrintKeyboardInfo(printFn func()) {
 	lk.clearNavigationMenu()
-	print()
+	printFn()
 
 	if lk.logLevel == INFO {
 		lk.createBuffer(0)
@@ -151,13 +159,13 @@ func (lk *LogKeyboard) createBuffer(lines int) {
 	if lk.kError.shoudlDisplay() {
 		extraLines := linesOffset(lk.kError.error()) + 1
 		allocateSpace(extraLines)
-		lines = lines + extraLines
+		lines += extraLines
 	}
 
 	infoMessage := lk.navigationMenu()
 	extraLines := linesOffset(infoMessage) + 1
 	allocateSpace(extraLines)
-	lines = lines + extraLines
+	lines += extraLines
 
 	if lines > 0 {
 		MoveCursorUp(lines)
@@ -259,6 +267,10 @@ func (lk *LogKeyboard) StartWatch(ctx context.Context, project *types.Project, o
 	}
 }
 
+func (lk *LogKeyboard) KeyboardClose() {
+	_ = keyboard.Close()
+}
+
 func (lk *LogKeyboard) HandleKeyEvents(event keyboard.KeyEvent, ctx context.Context, project *types.Project, options api.UpOptions) {
 	switch kRune := event.Rune; kRune {
 	case 'V':
@@ -269,7 +281,7 @@ func (lk *LogKeyboard) HandleKeyEvents(event keyboard.KeyEvent, ctx context.Cont
 	}
 	switch key := event.Key; key {
 	case keyboard.KeyCtrlC:
-		keyboard.Close()
+		lk.KeyboardClose()
 
 		lk.clearNavigationMenu()
 		ShowCursor()
@@ -281,7 +293,7 @@ func (lk *LogKeyboard) HandleKeyEvents(event keyboard.KeyEvent, ctx context.Cont
 		}
 		go func() {
 			// Send telemetry
-			tracing.SpanWrapFunc("navigation_menu", tracing.KeyboardOptions(lk.metrics),
+			_ = tracing.SpanWrapFunc("navigation_menu", tracing.KeyboardOptions(lk.metrics),
 				func(ctx context.Context) error {
 					return nil
 				})(ctx)

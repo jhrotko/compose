@@ -108,7 +108,7 @@ func (l *logConsumer) write(w io.Writer, container, message string) {
 	if l.ctx.Err() != nil {
 		return
 	}
-	print := func() {
+	printFn := func() {
 		p := l.getPresenter(container)
 		timestamp := time.Now().Format(jsonmessage.RFC3339NanoFixed)
 		for _, line := range strings.Split(message, "\n") {
@@ -120,9 +120,9 @@ func (l *logConsumer) write(w io.Writer, container, message string) {
 		}
 	}
 	if KeyboardManager != nil {
-		KeyboardManager.PrintKeyboardInfo(print)
+		KeyboardManager.PrintKeyboardInfo(printFn)
 	} else {
-		print()
+		printFn()
 	}
 }
 
