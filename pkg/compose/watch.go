@@ -219,10 +219,10 @@ func (s *composeService) watch(ctx context.Context, project *types.Project, name
 	for {
 		select {
 		case <-quit:
-			options.LogTo.Log(api.WatchLogger, "Watch stoped")
+			options.LogTo.Log(api.WatchLogger, "Watch stopped")
 			return nil
 		case err := <-watcher.Errors():
-			options.LogTo.Err(api.WatchLogger, "Watch stoped with errors")
+			options.LogTo.Err(api.WatchLogger, "Watch stopped with errors")
 			return err
 		case event := <-watcher.Events():
 			hostPath := event.Path()
