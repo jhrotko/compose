@@ -217,9 +217,9 @@ type StartOptions struct {
 	Wait        bool
 	WaitTimeout time.Duration
 	// Services passed in the command line to be started
-	Services      []string
-	Watch         bool
-	NavigationBar bool
+	Services       []string
+	Watch          bool
+	NavigationMenu bool
 }
 
 // RestartOptions group options of the Restart API

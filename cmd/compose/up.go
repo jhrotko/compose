@@ -260,16 +260,16 @@ func runUp(
 	return backend.Up(ctx, project, api.UpOptions{
 		Create: create,
 		Start: api.StartOptions{
-			Project:       project,
-			Attach:        consumer,
-			AttachTo:      attach,
-			ExitCodeFrom:  upOptions.exitCodeFrom,
-			CascadeStop:   upOptions.cascadeStop,
-			Wait:          upOptions.wait,
-			WaitTimeout:   timeout,
-			Watch:         upOptions.watch,
-			Services:      services,
-			NavigationBar: upOptions.navigationMenu,
+			Project:        project,
+			Attach:         consumer,
+			AttachTo:       attach,
+			ExitCodeFrom:   upOptions.exitCodeFrom,
+			CascadeStop:    upOptions.cascadeStop,
+			Wait:           upOptions.wait,
+			WaitTimeout:    timeout,
+			Watch:          upOptions.watch,
+			Services:       services,
+			NavigationMenu: upOptions.navigationMenu,
 		},
 	})
 }

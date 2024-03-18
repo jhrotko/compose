@@ -90,7 +90,7 @@ func (s *composeService) Up(ctx context.Context, project *types.Project, options
 		}
 
 		var kEvents <-chan keyboard.KeyEvent
-		if options.Start.NavigationBar {
+		if options.Start.NavigationMenu {
 			kEvents, err = keyboard.GetKeys(100)
 			if err != nil {
 				panic(err)
@@ -142,7 +142,7 @@ func (s *composeService) Up(ctx context.Context, project *types.Project, options
 		return err
 	})
 
-	if options.Start.Watch && !options.Start.NavigationBar {
+	if options.Start.Watch && !options.Start.NavigationMenu {
 		eg.Go(func() error {
 			buildOpts := *options.Create.Build
 			buildOpts.Quiet = true
