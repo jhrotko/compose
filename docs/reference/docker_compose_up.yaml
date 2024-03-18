@@ -108,6 +108,16 @@ options:
       experimentalcli: false
       kubernetes: false
       swarm: false
+    - option: navigation-menu
+      value_type: bool
+      default_value: "false"
+      description: While running in attach mode, enable helpful shortcuts.
+      deprecated: false
+      hidden: false
+      experimental: false
+      experimentalcli: false
+      kubernetes: false
+      swarm: false
     - option: no-attach
       value_type: stringArray
       default_value: '[]'

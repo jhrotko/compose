@@ -130,8 +130,9 @@ func upCommand(p *ProjectOptions, dockerCli command.Cli, backend api.Service, ex
 	flags.IntVar(&up.waitTimeout, "wait-timeout", 0, "Maximum duration to wait for the project to be running|healthy")
 	flags.BoolVarP(&up.watch, "watch", "w", false, "Watch source code and rebuild/refresh containers when files are updated.")
 	composeMenu := true
-	if os.Getenv(ComposeMenu) != "" {
-		composeMenu = utils.StringToBool(os.Getenv(ComposeMenu))
+	composeMenuEnv, err := utils.GetEnvBool(ComposeMenu)
+	if err != nil {
+		composeMenu = composeMenuEnv
 	}
 	flags.BoolVar(&up.navigationMenu, "navigation-menu", composeMenu, "While running in attach mode, enable helpful shortcuts.")
 

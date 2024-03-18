@@ -17,6 +17,8 @@
 package utils
 
 import (
+	"fmt"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -39,4 +41,24 @@ func StringToBool(s string) bool {
 	}
 	b, _ := strconv.ParseBool(s)
 	return b
+}
+
+func getEnvStr(key string) (string, error) {
+	v := os.Getenv(key)
+	if v == "" {
+		return v, fmt.Errorf("env var not defined")
+	}
+	return v, nil
+}
+
+func GetEnvBool(key string) (bool, error) {
+	s, err := getEnvStr(key)
+	if err != nil {
+		return false, err
+	}
+	v, err := strconv.ParseBool(s)
+	if err != nil {
+		return false, err
+	}
+	return v, nil
 }
