@@ -132,10 +132,7 @@ func NewKeyboardManager(isDockerDesktopActive, isWatchConfigured bool,
 
 	km.signalChannel = sc
 
-	km.metrics = tracing.KeyboardMetrics{
-		EnabledViewDockerDesktop: isDockerDesktopActive,
-		HasWatchConfig:           isWatchConfigured,
-	}
+	km.metrics = tracing.NewKeyboardMetrics(isDockerDesktopActive, isWatchConfigured)
 
 	KeyboardManager = &km
 
@@ -237,7 +234,7 @@ func (lk *LogKeyboard) openDockerDesktop(project *types.Project) {
 	if !lk.IsDockerDesktopActive {
 		return
 	}
-	lk.metrics.ActivateViewDockerDesktop = true
+	lk.metrics.RegisterCommand(tracing.GUI)
 	link := fmt.Sprintf("docker-desktop://dashboard/apps/%s", project.Name)
 	err := open.Run(link)
 	if err != nil {
@@ -276,7 +273,9 @@ func (lk *LogKeyboard) HandleKeyEvents(event keyboard.KeyEvent, ctx context.Cont
 	case 'v':
 		lk.openDockerDesktop(project)
 	case 'w':
-		lk.metrics.ActivateWatch = true
+		if !lk.Watch.isWatching() {
+			lk.metrics.RegisterCommand(tracing.WATCH)
+		}
 		lk.StartWatch(ctx, project, options)
 	}
 	switch key := event.Key; key {

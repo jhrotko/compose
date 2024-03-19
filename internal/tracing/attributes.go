@@ -42,13 +42,6 @@ type Metrics struct {
 	CountIncludesRemote int
 }
 
-type KeyboardMetrics struct {
-	EnabledViewDockerDesktop  bool
-	HasWatchConfig            bool
-	ActivateViewDockerDesktop bool
-	ActivateWatch             bool
-}
-
 func (s SpanOptions) SpanStartOptions() []trace.SpanStartOption {
 	out := make([]trace.SpanStartOption, len(s))
 	for i := range s {
@@ -142,18 +135,6 @@ func ServiceOptions(service types.ServiceConfig) SpanOptions {
 	}
 }
 
-func KeyboardOptions(metrics KeyboardMetrics) SpanOptions {
-	attrs := []attribute.KeyValue{
-		attribute.Bool("view.enabled", metrics.EnabledViewDockerDesktop),
-		attribute.Bool("view.activated", metrics.ActivateViewDockerDesktop),
-		attribute.Bool("watch.activated", metrics.ActivateWatch),
-		attribute.Bool("watch.config", metrics.HasWatchConfig),
-	}
-	return []trace.SpanStartEventOption{
-		trace.WithAttributes(attrs...),
-	}
-}
-
 // ContainerOptions returns common attributes from a Moby container.
 //
 // For convenience, it's returned as a SpanOptions object to allow it to be
@@ -170,6 +151,17 @@ func ContainerOptions(container moby.Container) SpanOptions {
 		attrs = append(attrs, attribute.String("container.name", strings.TrimPrefix(container.Names[0], "/")))
 	}
 
+	return []trace.SpanStartEventOption{
+		trace.WithAttributes(attrs...),
+	}
+}
+
+func KeyboardOptions(metrics KeyboardMetrics) SpanOptions {
+	attrs := []attribute.KeyValue{
+		attribute.Bool("navmenu.enabled", metrics.enabled),
+		attribute.StringSlice("navmenu.command", CommandSliceToString(metrics.command)),
+		attribute.StringSlice("navmenu.command_available", CommandSliceToString(metrics.commandAvailable)),
+	}
 	return []trace.SpanStartEventOption{
 		trace.WithAttributes(attrs...),
 	}
