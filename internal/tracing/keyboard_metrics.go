@@ -30,12 +30,12 @@ const (
 	DEBUG Command = "debug"
 )
 
-func NewKeyboardMetrics(IsDockerDesktopActive, isWatchConfigured bool) KeyboardMetrics {
+func NewKeyboardMetrics(isDockerDesktopActive, isWatchConfigured bool) KeyboardMetrics {
 	metrics := KeyboardMetrics{
 		enabled:          true,
 		commandAvailable: []Command{},
 	}
-	if IsDockerDesktopActive {
+	if isDockerDesktopActive {
 		metrics.commandAvailable = append(metrics.commandAvailable, GUI)
 	}
 	if isWatchConfigured {

@@ -60,7 +60,7 @@ func (ke *KeyboardError) printError(height int, info string) {
 func (ke *KeyboardError) addError(prefix string, err error) {
 	ke.timeStart = time.Now()
 
-	prefix = ansiColor("1;36", fmt.Sprintf("%s →", prefix))
+	prefix = ansiColor(CYAN, fmt.Sprintf("%s →", prefix), BOLD)
 	errorString := fmt.Sprintf("%s  %s", prefix, err.Error())
 
 	ke.err = errors.New(errorString)
@@ -244,7 +244,7 @@ func (lk *LogKeyboard) openDockerDesktop(project *types.Project) {
 
 func (lk *LogKeyboard) StartWatch(ctx context.Context, project *types.Project, options api.UpOptions) {
 	if !lk.IsWatchConfigured {
-		lk.kError.addError("Watch", fmt.Errorf("Watch is not yet configured. Learn more: %s", ansiColor("36", "https://docs.docker.com/compose/file-watch/")))
+		lk.kError.addError("Watch", fmt.Errorf("Watch is not yet configured. Learn more: %s", ansiColor(CYAN, "https://docs.docker.com/compose/file-watch/")))
 		return
 	}
 	lk.Watch.switchWatching()
@@ -323,6 +323,5 @@ func shortcutKeyColor(key string) string {
 	black := "0;0;0"
 	background := "48;2"
 	white := "255;255;255"
-	bold := "1"
-	return ansiColor(foreground+";"+black+";"+background+";"+white+";"+bold, key)
+	return ansiColor(foreground+";"+black+";"+background+";"+white, key, BOLD)
 }
