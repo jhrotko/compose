@@ -622,3 +622,15 @@ var printerModes = []string{
 	ui.ModePlain,
 	ui.ModeQuiet,
 }
+
+func SetUnchangedOption(name string, experimentalFlag bool) bool {
+	var value bool
+	// If the var is defined we use that value first
+	if envVar, ok := os.LookupEnv(name); ok {
+		value = utils.StringToBool(envVar)
+	} else {
+		// if not, we try to get it from experimental feature flag
+		value = experimentalFlag
+	}
+	return value
+}

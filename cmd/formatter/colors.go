@@ -42,11 +42,9 @@ const (
 	UNDERLINE = "4"
 )
 
-type Color string
-
 const (
-	RESET Color = "0"
-	CYAN  Color = "36"
+	RESET = "0"
+	CYAN  = "36"
 )
 
 const (
