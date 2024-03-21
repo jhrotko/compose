@@ -108,13 +108,12 @@ type LogKeyboard struct {
 	IsWatchConfigured     bool
 	logLevel              KEYBOARD_LOG_LEVEL
 	signalChannel         chan<- os.Signal
-	metrics               tracing.KeyboardMetrics
 }
 
 var KeyboardManager *LogKeyboard
 var eg multierror.Group
 
-func NewKeyboardManager(isDockerDesktopActive, isWatchConfigured bool,
+func NewKeyboardManager(ctx context.Context, isDockerDesktopActive, isWatchConfigured bool,
 	sc chan<- os.Signal,
 	watchFn func(ctx context.Context,
 		project *types.Project,
@@ -131,8 +130,6 @@ func NewKeyboardManager(isDockerDesktopActive, isWatchConfigured bool,
 	km.Watch.WatchFn = watchFn
 
 	km.signalChannel = sc
-
-	km.metrics = tracing.NewKeyboardMetrics(isDockerDesktopActive, isWatchConfigured)
 
 	KeyboardManager = &km
 
@@ -230,37 +227,47 @@ func (lk *LogKeyboard) CleanTerminal() {
 	}
 }
 
-func (lk *LogKeyboard) openDockerDesktop(project *types.Project) {
+func (lk *LogKeyboard) openDockerDesktop(ctx context.Context, project *types.Project) {
 	if !lk.IsDockerDesktopActive {
 		return
 	}
-	lk.metrics.RegisterCommand(tracing.GUI)
-	link := fmt.Sprintf("docker-desktop://dashboard/apps/%s", project.Name)
-	err := open.Run(link)
-	if err != nil {
-		lk.kError.addError("View", fmt.Errorf("Could not open Docker Desktop"))
-	}
+	eg.Go(tracing.EventWrapFuncForErrGroup(ctx, "menu/gui", tracing.SpanOptions{},
+		func(ctx context.Context) error {
+			link := fmt.Sprintf("docker-desktop://dashboard/apps/%s", project.Name)
+			err := open.Run(link)
+			if err != nil {
+				err = fmt.Errorf("Could not open Docker Desktop")
+				lk.kError.addError("View", err)
+			}
+			return err
+		}),
+	)
 }
 
 func (lk *LogKeyboard) StartWatch(ctx context.Context, project *types.Project, options api.UpOptions) {
 	if !lk.IsWatchConfigured {
-		lk.kError.addError("Watch", fmt.Errorf("Watch is not yet configured. Learn more: %s", ansiColor(CYAN, "https://docs.docker.com/compose/file-watch/")))
+		eg.Go(tracing.EventWrapFuncForErrGroup(ctx, "menu/watch", tracing.SpanOptions{},
+			func(ctx context.Context) error {
+				err := fmt.Errorf("Watch is not yet configured. Learn more: %s", ansiColor(CYAN, "https://docs.docker.com/compose/file-watch/"))
+				lk.kError.addError("Watch", err)
+				return err
+			}))
 		return
 	}
 	lk.Watch.switchWatching()
 	if !lk.Watch.isWatching() && lk.Watch.Cancel != nil {
 		lk.Watch.Cancel()
 	} else {
-		lk.Watch.newContext(ctx)
-		eg.Go(func() error {
-			buildOpts := *options.Create.Build
-			buildOpts.Quiet = true
-			err := lk.Watch.WatchFn(lk.Watch.Ctx, project, options.Start.Services, api.WatchOptions{
-				Build: &buildOpts,
-				LogTo: options.Start.Attach,
-			})
-			return err
-		})
+		eg.Go(tracing.EventWrapFuncForErrGroup(ctx, "menu/watch", tracing.SpanOptions{},
+			func(ctx context.Context) error {
+				lk.Watch.newContext(ctx)
+				buildOpts := *options.Create.Build
+				buildOpts.Quiet = true
+				return lk.Watch.WatchFn(lk.Watch.Ctx, project, options.Start.Services, api.WatchOptions{
+					Build: &buildOpts,
+					LogTo: options.Start.Attach,
+				})
+			}))
 	}
 }
 
@@ -271,11 +278,8 @@ func (lk *LogKeyboard) KeyboardClose() {
 func (lk *LogKeyboard) HandleKeyEvents(event keyboard.KeyEvent, ctx context.Context, project *types.Project, options api.UpOptions) {
 	switch kRune := event.Rune; kRune {
 	case 'v':
-		lk.openDockerDesktop(project)
+		lk.openDockerDesktop(ctx, project)
 	case 'w':
-		if !lk.Watch.isWatching() {
-			lk.metrics.RegisterCommand(tracing.WATCH)
-		}
 		lk.StartWatch(ctx, project, options)
 	}
 	switch key := event.Key; key {
@@ -290,13 +294,6 @@ func (lk *LogKeyboard) HandleKeyEvents(event keyboard.KeyEvent, ctx context.Cont
 			lk.Watch.Cancel()
 			_ = eg.Wait().ErrorOrNil() // Need to print this ?
 		}
-		go func() {
-			// Send telemetry
-			_ = tracing.SpanWrapFunc("navigation_menu", tracing.KeyboardOptions(lk.metrics),
-				func(ctx context.Context) error {
-					return nil
-				})(ctx)
-		}()
 		// will notify main thread to kill and will handle gracefully
 		lk.signalChannel <- syscall.SIGINT
 	case keyboard.KeyEnter:

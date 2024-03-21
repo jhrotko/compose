@@ -16,42 +16,21 @@
 
 package tracing
 
-type KeyboardMetrics struct {
-	enabled          bool
-	command          []Command
-	commandAvailable []Command
-}
+import (
+	"context"
 
-type Command string
-
-const (
-	GUI   Command = "gui"
-	WATCH Command = "watch"
-	DEBUG Command = "debug"
+	"go.opentelemetry.io/otel/attribute"
 )
 
-func NewKeyboardMetrics(isDockerDesktopActive, isWatchConfigured bool) KeyboardMetrics {
-	metrics := KeyboardMetrics{
-		enabled:          true,
-		commandAvailable: []Command{},
-	}
+func KeyboardMetrics(ctx context.Context, enabled, isDockerDesktopActive, isWatchConfigured bool) {
+	commandAvailable := []string{}
 	if isDockerDesktopActive {
-		metrics.commandAvailable = append(metrics.commandAvailable, GUI)
+		commandAvailable = append(commandAvailable, "gui")
 	}
 	if isWatchConfigured {
-		metrics.commandAvailable = append(metrics.commandAvailable, WATCH)
+		commandAvailable = append(commandAvailable, "watch")
 	}
-	return metrics
-}
-
-func (metrics *KeyboardMetrics) RegisterCommand(command Command) {
-	metrics.command = append(metrics.command, command)
-}
-
-func CommandSliceToString(lst []Command) []string {
-	result := []string{}
-	for _, c := range lst {
-		result = append(result, string(c))
-	}
-	return result
+	AddAttributeToSpan(ctx,
+		attribute.Bool("navmenu.enabled", enabled),
+		attribute.StringSlice("navmenu.command_available", commandAvailable))
 }

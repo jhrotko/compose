@@ -156,17 +156,6 @@ func ContainerOptions(container moby.Container) SpanOptions {
 	}
 }
 
-func KeyboardOptions(metrics KeyboardMetrics) SpanOptions {
-	attrs := []attribute.KeyValue{
-		attribute.Bool("navmenu.enabled", metrics.enabled),
-		attribute.StringSlice("navmenu.command", CommandSliceToString(metrics.command)),
-		attribute.StringSlice("navmenu.command_available", CommandSliceToString(metrics.commandAvailable)),
-	}
-	return []trace.SpanStartEventOption{
-		trace.WithAttributes(attrs...),
-	}
-}
-
 func keys[T any](m map[string]T) []string {
 	out := make([]string, 0, len(m))
 	for k := range m {
