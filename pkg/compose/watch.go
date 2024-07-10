@@ -31,6 +31,7 @@ import (
 	pathutil "github.com/docker/compose/v2/internal/paths"
 	"github.com/docker/compose/v2/internal/sync"
 	"github.com/docker/compose/v2/pkg/api"
+	"github.com/docker/compose/v2/pkg/utils"
 	"github.com/docker/compose/v2/pkg/watch"
 	moby "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -95,9 +96,11 @@ func (s *composeService) watch(ctx context.Context, syncChannel chan bool, proje
 	eg, ctx := errgroup.WithContext(ctx)
 	watching := false
 	options.LogTo.Register(api.WatchLogger)
+	fmt.Println("[watch] yo")
 	for i := range project.Services {
 		service := project.Services[i]
 		config, err := loadDevelopmentConfig(service, project)
+		fmt.Println("[watch] config", config)
 		if err != nil {
 			return err
 		}
@@ -245,7 +248,15 @@ func (s *composeService) watchEvents(ctx context.Context, project *types.Project
 			return err
 		case event := <-watcher.Events():
 			hostPath := event.Path()
+			fmt.Printf("watch event! %v\n", triggers)
+
 			for i, trigger := range triggers {
+				newPath, err := utils.ConvertSymbolicLink(trigger.Path)
+				fmt.Println("[convertSymbolicLink] ", newPath, err)
+				if err == nil {
+					trigger.Path = newPath
+				}
+				fmt.Println("watch event! path:", trigger.Path, "action:", trigger.Action, "target:", trigger.Target)
 				logrus.Debugf("change for %s - comparing with %s", hostPath, trigger.Path)
 				if fileEvent := maybeFileEvent(trigger, hostPath, ignores[i]); fileEvent != nil {
 					events <- *fileEvent
@@ -275,7 +286,9 @@ func maybeFileEvent(trigger types.Trigger, hostPath string, ignore watch.PathMat
 	}
 
 	var containerPath string
+	fmt.Print("maybewatchevent trigger.Target", trigger.Target)
 	if trigger.Target != "" {
+		fmt.Println("trigegr", trigger.Path, "host", hostPath)
 		rel, err := filepath.Rel(trigger.Path, hostPath)
 		if err != nil {
 			logrus.Warnf("error making %s relative to %s: %v", hostPath, trigger.Path, err)
@@ -306,10 +319,12 @@ func loadDevelopmentConfig(service types.ServiceConfig, project *types.Project) 
 		return nil, err
 	}
 	baseDir, err := filepath.EvalSymlinks(project.WorkingDir)
+	fmt.Println("[loadDevelopmentConfig] baseDir", baseDir)
 	if err != nil {
 		return nil, fmt.Errorf("resolving symlink for %q: %w", project.WorkingDir, err)
 	}
 
+	fmt.Println("load config", config.Watch)
 	for i, trigger := range config.Watch {
 		if !filepath.IsAbs(trigger.Path) {
 			trigger.Path = filepath.Join(baseDir, trigger.Path)

@@ -63,6 +63,7 @@ func (d *fseventNotify) loop() {
 				}
 
 				ignore, err := d.ignore.Matches(e.Path)
+				// fmt.Println("[loop] path", e.Path)
 				if err != nil {
 					logrus.Infof("Error matching path %q: %v", e.Path, err)
 				} else if ignore {
